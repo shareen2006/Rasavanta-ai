@@ -29,12 +29,15 @@ const ScrollToTop = () => {
 export const App = () => {
   const { pathname } = useLocation();
   const isAuthPage = pathname === '/login' || pathname === '/register';
+  const isFullHeightPage = pathname === '/rasabot';
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#F5F0E5] text-[#303A32] selection:bg-[#D99A38]/30 selection:text-[#244B39]">
+    <div className={`flex flex-col bg-[#F5F0E5] text-[#303A32] selection:bg-[#D99A38]/30 selection:text-[#244B39] ${
+      isFullHeightPage ? 'h-screen overflow-hidden' : 'min-h-screen'
+    }`}>
       <ScrollToTop />
       {!isAuthPage && <Navbar />}
-      <main className="flex-1">
+      <main className={isFullHeightPage ? "flex-1 overflow-hidden relative pt-4 sm:pt-5" : "flex-1"}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/recipes" element={<Explore />} />
@@ -54,7 +57,7 @@ export const App = () => {
         </Routes>
       </main>
       <FloatingRasaBotLauncher />
-      {!isAuthPage && <Footer />}
+      {!isAuthPage && !isFullHeightPage && <Footer />}
     </div>
   );
 };

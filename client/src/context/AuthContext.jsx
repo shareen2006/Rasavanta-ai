@@ -38,6 +38,18 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const googleLogin = async (credential) => {
+    try {
+      const res = await authService.googleLogin(credential);
+      setUser(res.user);
+      toast.success(`Welcome, ${res.user.name || 'Chef'}!`);
+      return res;
+    } catch (err) {
+      toast.error(err.message || 'Google sign-in failed. Please try again.');
+      throw err;
+    }
+  };
+
   const logout = () => {
     authService.logout();
     setUser(null);
@@ -52,6 +64,7 @@ export const AuthProvider = ({ children }) => {
         isAuthenticated: !!user,
         login,
         register,
+        googleLogin,
         logout
       }}
     >

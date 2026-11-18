@@ -4,7 +4,7 @@ import { Globe, Check, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SUPPORTED_LANGUAGES } from '../../i18n';
 
-export const LanguageSelector = ({ isMobile = false }) => {
+export const LanguageSelector = ({ isMobile = false, isDark = false }) => {
   const { i18n } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -32,16 +32,18 @@ export const LanguageSelector = ({ isMobile = false }) => {
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         aria-label="Select Language"
-        className={`inline-flex items-center justify-between gap-2 rounded-full border border-[#A7B99A]/50 bg-white/85 px-3.5 h-10 text-xs sm:text-sm font-semibold text-[#244B39] shadow-xs backdrop-blur-sm transition-all duration-200 hover:border-[#244B39] hover:bg-white focus:outline-none focus:ring-2 focus:ring-[#D99A38] ${
-          isMobile ? 'w-full py-2.5 px-4 text-base h-auto' : ''
-        }`}
+        className={`inline-flex items-center justify-between gap-1.5 sm:gap-2 rounded-full transition-all duration-200 focus:outline-none cursor-pointer ${
+          isDark
+            ? 'border border-white/15 bg-white/10 px-3 h-9 text-xs font-semibold text-white/90 hover:bg-white/15 hover:border-white/30 hover:text-white backdrop-blur-md shadow-xs'
+            : 'border border-[#A7B99A]/50 bg-white/85 px-3.5 h-10 text-xs sm:text-sm font-semibold text-[#244B39] shadow-xs backdrop-blur-sm hover:border-[#244B39] hover:bg-white'
+        } ${isMobile ? 'w-full py-2.5 px-4 text-base h-auto' : ''}`}
       >
-        <span className="flex items-center gap-2">
-          <Globe className="h-4 w-4 text-[#D99A38]" />
+        <span className="flex items-center gap-1.5 sm:gap-2">
+          <Globe className="h-3.5 w-3.5 text-[#D99A38]" />
           <span className="font-semibold tracking-wide">{currentLang.nativeName}</span>
-          <span className="text-xs text-[#566459] hidden sm:inline">({currentLang.name})</span>
+          <span className={`text-[11px] hidden sm:inline ${isDark ? 'text-white/60' : 'text-[#566459]'}`}>({currentLang.name})</span>
         </span>
-        <ChevronDown className={`h-3.5 w-3.5 text-[#566459] transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`h-3 w-3 sm:h-3.5 sm:w-3.5 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''} ${isDark ? 'text-white/60' : 'text-[#566459]'}`} />
       </button>
 
       <AnimatePresence>

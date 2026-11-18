@@ -128,6 +128,22 @@ export const authService = {
     }
   },
 
+  async googleLogin(credential) {
+    try {
+      const response = await apiClient.post('/auth/google', { credential });
+      if (response.data.token) {
+        localStorage.setItem(AUTH_TOKEN_KEY, response.data.token);
+        localStorage.setItem(AUTH_USER_KEY, JSON.stringify(response.data.user));
+      }
+      return response.data;
+    } catch (apiError) {
+      const msg = apiError.response?.data?.message || apiError.message || 'Google authentication failed.';
+      const err = new Error(msg);
+      err.response = apiError.response;
+      throw err;
+    }
+  },
+
   getCurrentUser() {
     try {
       const raw = localStorage.getItem(AUTH_USER_KEY);

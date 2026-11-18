@@ -1,4 +1,7 @@
 const User = require('../models/User');
+const { OAuth2Client } = require('google-auth-library');
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID || '627856945618-viqvi6i8lg353ovl8om3uett19dk6v2q.apps.googleusercontent.com');
 
 /**
  * Controller for User Authentication
@@ -150,4 +153,122 @@ exports.getMe = async (req, res) => {
     success: true,
     user: DEMO_CHEF
   });
+};
+
+exports.googleAuth = async (req, res) => {
+  try {
+    const { credential } = req.body;
+    if (!credential) {
+      return res.status(400).json({
+        success: false,
+        message: 'Google credential token is required.'
+      });
+    }
+
+    const targetClientId = process.env.GOOGLE_CLIENT_ID || '627856945618-viqvi6i8lg353ovl8om3uett19dk6v2q.apps.googleusercontent.com';
+
+    let payload;
+    try {
+      const ticket = await googleClient.verifyIdToken({
+        idToken: credential,
+        audience: targetClientId
+      });
+      payload = ticket.getPayload();
+    } catch (verifyError) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid or expired Google credential token.',
+        error: verifyError.message
+      });
+    }
+
+    // Require verified email
+    if (!payload || !payload.email_verified) {
+      return res.status(403).json({
+        success: false,
+        message: 'Google account email is not verified. Please verify your email with Google first.'
+      });
+    }
+
+    const cleanEmail = (payload.email || '').trim().toLowerCase();
+    const googleSub = payload.sub;
+    const name = payload.name || cleanEmail.split('@')[0];
+    const picture = payload.picture || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80';
+
+    if (isDbConnected()) {
+      let user = await User.findOne({ email: cleanEmail });
+
+      if (user) {
+        // Link existing user account safely
+        let changed = false;
+        if (!user.googleId) {
+          user.googleId = googleSub;
+          changed = true;
+        }
+        if (user.avatar && user.avatar.includes('unsplash') && picture) {
+          user.avatar = picture;
+          changed = true;
+        }
+        if (changed) {
+          await user.save();
+        }
+      } else {
+        // Create new Google-authenticated user
+        user = await User.create({
+          id: `usr-google-${Date.now()}`,
+          name: name.trim(),
+          email: cleanEmail,
+          googleId: googleSub,
+          authProvider: 'google',
+          role: 'Home Chef',
+          avatar: picture,
+          favoriteRecipes: [],
+          preferences: {
+            cuisine: 'All',
+            diet: 'All',
+            language: 'en'
+          }
+        });
+      }
+
+      const userObj = user.toObject ? user.toObject() : user;
+      if (userObj.password) delete userObj.password;
+
+      return res.status(200).json({
+        success: true,
+        token: `jwt_token_${user.id}_${Date.now()}`,
+        user: userObj,
+        source: 'mongodb'
+      });
+    }
+
+    // Resilient in-memory fallback
+    let memUser = inMemoryUsers.find(u => u.email.toLowerCase() === cleanEmail);
+    if (memUser) {
+      if (!memUser.googleId) memUser.googleId = googleSub;
+      if (picture) memUser.avatar = picture;
+    } else {
+      memUser = {
+        id: `usr-google-${Date.now()}`,
+        name: name.trim(),
+        email: cleanEmail,
+        googleId: googleSub,
+        authProvider: 'google',
+        role: 'Home Chef',
+        avatar: picture
+      };
+      inMemoryUsers.push(memUser);
+    }
+
+    const { password: _, ...safeUser } = memUser;
+    return res.status(200).json({
+      success: true,
+      token: `jwt_token_${memUser.id}_${Date.now()}`,
+      user: safeUser,
+      source: 'memory'
+    });
+  } catch (error) {
+    console.error('Error in googleAuth:', error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
 };

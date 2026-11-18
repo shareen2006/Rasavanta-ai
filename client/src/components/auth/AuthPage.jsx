@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigation } from '../../context/NavigationContext';
+import { GoogleSignInButton } from './GoogleSignInButton';
 import { 
   Mail, 
   Lock, 
@@ -492,6 +493,19 @@ export const AuthPage = ({ initialMode = 'login' }) => {
                     )}
                   </AnimatePresence>
 
+                  {/* Google Sign-In Button */}
+                  <motion.div variants={formItemSlideUp} className="w-full">
+                    <GoogleSignInButton mode="login" />
+                  </motion.div>
+
+                  {/* Sleek Divider */}
+                  <motion.div variants={formItemSlideUp} className="relative flex items-center justify-center my-1.5">
+                    <div className="w-full border-t border-[#A7B99A]/30" />
+                    <span className="absolute bg-white px-3 text-[11px] font-bold uppercase tracking-wider text-[#566459]/75">
+                      or continue with email
+                    </span>
+                  </motion.div>
+
                   {/* Login Form Fields */}
                   <form onSubmit={handleLoginSubmit} className="space-y-3.5">
                     {/* Email Input */}
@@ -663,6 +677,19 @@ export const AuthPage = ({ initialMode = 'login' }) => {
                       </motion.div>
                     )}
                   </AnimatePresence>
+
+                  {/* Google Sign-Up Button */}
+                  <motion.div variants={formItemSlideUp} className="w-full">
+                    <GoogleSignInButton mode="register" />
+                  </motion.div>
+
+                  {/* Sleek Divider */}
+                  <motion.div variants={formItemSlideUp} className="relative flex items-center justify-center my-1.5">
+                    <div className="w-full border-t border-[#A7B99A]/30" />
+                    <span className="absolute bg-white px-3 text-[11px] font-bold uppercase tracking-wider text-[#566459]/75">
+                      or sign up with email
+                    </span>
+                  </motion.div>
 
                   {/* Register Form Fields */}
                   <form onSubmit={handleRegisterSubmit} className="space-y-3">
