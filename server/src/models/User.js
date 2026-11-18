@@ -1,0 +1,47 @@
+const mongoose = require('mongoose');
+
+const UserSchema = new mongoose.Schema({
+  id: {
+    type: String,
+    required: true,
+    unique: true,
+    index: true
+  },
+  name: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  email: {
+    type: String,
+    required: true,
+    unique: true,
+    trim: true,
+    lowercase: true,
+    index: true
+  },
+  password: {
+    type: String,
+    required: true
+  },
+  role: {
+    type: String,
+    default: 'Home Chef'
+  },
+  avatar: {
+    type: String,
+    default: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80'
+  },
+  favoriteRecipes: [{
+    type: String
+  }],
+  preferences: {
+    cuisine: { type: String, default: 'All' },
+    diet: { type: String, default: 'All' },
+    language: { type: String, default: 'en' }
+  }
+}, {
+  timestamps: true
+});
+
+module.exports = mongoose.models.User || mongoose.model('User', UserSchema);
