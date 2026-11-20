@@ -137,7 +137,14 @@ export const authService = {
       }
       return response.data;
     } catch (apiError) {
-      const msg = apiError.response?.data?.message || apiError.message || 'Google authentication failed.';
+      let msg = apiError.response?.data?.message;
+      if (!msg) {
+        if (apiError.message?.includes('Network Error')) {
+          msg = 'Unable to reach authentication service. Please verify server connectivity.';
+        } else {
+          msg = apiError.message || 'Google authentication failed.';
+        }
+      }
       const err = new Error(msg);
       err.response = apiError.response;
       throw err;

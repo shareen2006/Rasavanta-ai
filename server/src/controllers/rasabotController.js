@@ -45,9 +45,28 @@ exports.chat = async (req, res) => {
       return res.status(200).json(geminiChatResult);
     } catch (geminiError) {
       console.error('[RasaBot Controller] Gemini Chat API Error:', geminiError.message || geminiError);
-      return res.status(503).json({
+      
+      const errMsg = String(geminiError.message || '');
+      let userFacingMessage = 'Gemini AI is temporarily unavailable. Please tap Retry Message below to resend.';
+      let statusCode = 503;
+
+      if (errMsg.includes('429') || errMsg.includes('RESOURCE_EXHAUSTED') || errMsg.includes('quota')) {
+        userFacingMessage = 'Gemini AI rate limit reached. Please wait a few seconds and tap Retry Message.';
+        statusCode = 429;
+      } else if (errMsg.includes('503') || errMsg.includes('UNAVAILABLE') || errMsg.includes('high demand')) {
+        userFacingMessage = 'Gemini AI servers are currently experiencing high demand. Please tap Retry Message below.';
+        statusCode = 503;
+      } else if (geminiError.code === 'TIMEOUT' || errMsg.includes('timed out')) {
+        userFacingMessage = 'Gemini AI generation request timed out. Please tap Retry Message below.';
+        statusCode = 504;
+      } else if (errMsg.includes('API key') || errMsg.includes('not configured')) {
+        userFacingMessage = 'Gemini AI is not configured properly. Please check your GEMINI_API_KEY environment variable.';
+        statusCode = 500;
+      }
+
+      return res.status(statusCode).json({
         success: false,
-        message: 'Gemini AI is currently processing high traffic or experiencing network latency. Please tap Retry to resend.',
+        message: userFacingMessage,
         error: geminiError.message
       });
     }

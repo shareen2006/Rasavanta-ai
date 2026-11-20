@@ -262,15 +262,28 @@ export const RasaBotPage = () => {
       setConversations(savedList);
     } catch (err) {
       console.error('RasaBot Send Error:', err);
+      const serverMessage = err.response?.data?.message;
+      let errorContent = serverMessage;
+
+      if (!errorContent) {
+        if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+          errorContent = 'Gemini AI generation request timed out. Please tap **Retry Message** below.';
+        } else if (err.message?.includes('Network Error')) {
+          errorContent = 'Unable to reach backend server. Please verify your internet connection or tap **Retry Message** below.';
+        } else {
+          errorContent = err.message || 'Gemini AI was unable to generate a response. Please tap **Retry Message** below.';
+        }
+      }
+
       const errorMessage = {
         id: 'msg-err-' + Date.now(),
         role: 'assistant',
         isError: true,
-        content: 'Gemini AI is currently processing high traffic or experiencing network latency. Please tap **Retry Message** below to resend.',
+        content: errorContent,
         timestamp: new Date().toISOString()
       };
       setMessages((prev) => [...prev, errorMessage]);
-      toast.error('Gemini connection delay. Tap retry to resend.');
+      toast.error(errorContent.replace(/\*\*/g, ''));
     } finally {
       setIsLoading(false);
     }
@@ -287,7 +300,8 @@ export const RasaBotPage = () => {
   const handleRetryLast = () => {
     const lastUserMessage = [...messages].reverse().find((m) => m.role === 'user');
     if (lastUserMessage) {
-      const cleaned = messages.filter((m) => !m.isError && m.id !== lastUserMessage.id);
+      // Remove trailing error messages without deleting user's message
+      const cleaned = messages.filter((m) => !m.isError);
       setMessages(cleaned);
       handleSendMessage(lastUserMessage.content);
     }

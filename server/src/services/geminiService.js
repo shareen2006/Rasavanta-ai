@@ -9,7 +9,7 @@ const { resolveRecipeImage } = require('./recipeImageService');
  */
 
 const DEFAULT_MODEL = 'gemini-3.5-flash-lite';
-const FALLBACK_MODELS = ['gemini-3.7-flash', 'gemini-3.5-flash'];
+const FALLBACK_MODELS = [];
 const REQUEST_TIMEOUT_MS = 45000;
 
 const RASABOT_SYSTEM_INSTRUCTION = `You are RasaBot, a friendly, warm, empathetic, and expert AI culinary companion for RASAVANTA AI ("Rooted in Taste. Powered by Intelligence.").
@@ -107,7 +107,11 @@ class GeminiService {
           // Timeout wrapper
           const timeoutPromise = new Promise((_, reject) => {
             setTimeout(
-              () => reject(new Error(`Gemini API request timed out after ${REQUEST_TIMEOUT_MS}ms`)),
+              () => {
+                const timeoutErr = new Error(`Gemini API request timed out after ${REQUEST_TIMEOUT_MS}ms`);
+                timeoutErr.code = 'TIMEOUT';
+                reject(timeoutErr);
+              },
               REQUEST_TIMEOUT_MS
             );
           });
@@ -117,9 +121,14 @@ class GeminiService {
           return { response, model };
         } catch (err) {
           lastError = err;
-          console.warn(`[GeminiService] Model ${model} (attempt ${attempt}/2) failed:`, err.message || err);
-          if (attempt < 2 && (String(err.message).includes('503') || String(err.message).includes('429'))) {
-            await new Promise((r) => setTimeout(r, 1200));
+          const errMsg = String(err?.message || err);
+          console.warn(`[GeminiService] Model ${model} (attempt ${attempt}/2) failed:`, errMsg);
+
+          // Retryable status: 503 (high demand) or 429 (rate limit)
+          if (attempt < 2 && (errMsg.includes('503') || errMsg.includes('429') || errMsg.includes('UNAVAILABLE') || errMsg.includes('high demand'))) {
+            const backoffMs = attempt * 1500;
+            console.info(`[GeminiService] Backing off for ${backoffMs}ms before retrying...`);
+            await new Promise((r) => setTimeout(r, backoffMs));
           }
         }
       }
