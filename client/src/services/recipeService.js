@@ -65,6 +65,24 @@ export const recipeService = {
       const capitalizedPrimary = primaryIngredient.charAt(0).toUpperCase() + primaryIngredient.slice(1);
       const capitalizedSecondary = secondaryIngredient.charAt(0).toUpperCase() + secondaryIngredient.slice(1);
 
+      const allIngs = userIngredients.join(' ').toLowerCase();
+      let customImage = '/images/recipes/south-indian-thali.jpg';
+      if (allIngs.includes('paneer') || allIngs.includes('cottage cheese')) {
+        customImage = '/images/recipes/paneer-butter-masala.jpg';
+      } else if (allIngs.includes('mushroom')) {
+        customImage = 'https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=1200&q=80';
+      } else if (allIngs.includes('chicken')) {
+        customImage = 'https://images.unsplash.com/photo-1603894584373-5ac82b2ae398?auto=format&fit=crop&w=1200&q=80';
+      } else if (allIngs.includes('biryani') || allIngs.includes('basmati')) {
+        customImage = '/images/recipes/hyderabadi-dum-biryani.jpg';
+      } else if (allIngs.includes('dosa')) {
+        customImage = '/images/recipes/masala-dosa.jpg';
+      } else if (allIngs.includes('idli')) {
+        customImage = '/images/recipes/idli-sambar.jpg';
+      } else if (allIngs.includes('fried rice') || allIngs.includes('rice')) {
+        customImage = 'https://images.unsplash.com/photo-1603133872878-684f208fb84b?auto=format&fit=crop&w=1200&q=80';
+      }
+
       const customTailoredRecipe = {
         id: customRecipeId,
         title: `${capitalizedPrimary} & ${capitalizedSecondary} Rasamrutham`,
@@ -90,7 +108,8 @@ export const recipeService = {
           fat: '8g',
           fiber: '7g'
         },
-        image: '/images/rasavanta-recipe-placeholder.svg',
+        image: customImage,
+        imagePrompt: `Gourmet food photography of ${capitalizedPrimary} and ${capitalizedSecondary} Rasamrutham, plated in traditional artisan dish with fresh microgreens and tempering.`,
         rating: 4.98,
         reviewsCount: 1,
         featured: true,
@@ -129,7 +148,42 @@ export const recipeService = {
         ],
         substitutions: [
           { original: capitalizedPrimary, substitute: 'Paneer or Tofu', note: 'Can be swapped if you run low.' }
-        ]
+        ],
+        equipment: [
+          {
+            name: 'Heavy-Bottom Kadhai',
+            image: 'https://images.unsplash.com/photo-1584269600464-37b1b58a9fe7?auto=format&fit=crop&w=600&q=80',
+            purpose: 'Curved bowl design allows heat to concentrate at base, perfect for bhunao and simmering.'
+          },
+          {
+            name: "Chef's Prep Knife",
+            image: 'https://images.unsplash.com/photo-1593618998160-e34014e67546?auto=format&fit=crop&w=600&q=80',
+            purpose: 'High-carbon stainless steel blade for uniform dicing and chiffonade cutting.'
+          },
+          {
+            name: 'Hardwood Cutting Board',
+            image: 'https://images.unsplash.com/photo-1590794056226-79ef3a8147e1?auto=format&fit=crop&w=600&q=80',
+            purpose: 'Stable knife-friendly prep surface protecting knives and workspace.'
+          },
+          {
+            name: 'Culinary Wooden Spatula',
+            image: 'https://images.unsplash.com/photo-1590794056226-79ef3a8147e1?auto=format&fit=crop&w=600&q=80',
+            purpose: 'Gentle scraping and folding tool that keeps soft ingredients whole.'
+          }
+        ],
+        tutorials: {
+          en: [
+            {
+              id: '2a8S048QJv8',
+              title: `${capitalizedPrimary} & ${capitalizedSecondary} Rasamrutham Masterclass`,
+              channel: 'Rasavanta AI Masterchefs',
+              thumbnail: 'https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=600&q=80',
+              duration: '12:00',
+              badge: 'Chef Masterclass',
+              embedUrl: `https://www.youtube-nocookie.com/embed?listType=search&list=${encodeURIComponent(capitalizedPrimary + ' ' + capitalizedSecondary + ' curry recipe')}`
+            }
+          ]
+        }
       };
 
       return {

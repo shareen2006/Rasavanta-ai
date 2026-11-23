@@ -13,8 +13,18 @@ const connectDB = require('./config/db');
 
 const PORT = process.env.PORT || 5000;
 
-// Initialize database connection
-connectDB();
+// Catch unhandled promise rejections and uncaught exceptions to guarantee zero crash
+process.on('unhandledRejection', (reason) => {
+  console.warn('[Server Warning] Unhandled Rejection:', reason?.message || reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('[Server Error] Uncaught Exception:', err.message);
+});
+
+// Initialize database connection safely
+connectDB().catch((err) => {
+  console.warn('[Server Init Warning] Database init error handled:', err.message);
+});
 
 app.listen(PORT, () => {
   console.log(`[RASAVANTA AI Server] Running on port ${PORT}`);

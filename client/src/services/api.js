@@ -26,18 +26,31 @@ apiClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('rasavanta_auth_token');
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+      // Purge legacy unverified mock tokens automatically
+      if (token.startsWith('jwt_token_')) {
+        localStorage.removeItem('rasavanta_auth_token');
+        localStorage.removeItem('rasavanta_user');
+      } else {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
     return config;
   },
   (error) => Promise.reject(error)
 );
 
-// Response interceptor for centralized error reporting
+// Response interceptor for centralized error reporting and session invalidation
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    // If backend isn't reachable (e.g., in standalone frontend demo mode), pass error cleanly
+    // If backend reports expired or invalid token, safely clear stale credentials
+    if (error.response && error.response.status === 401) {
+      const code = error.response.data?.code;
+      if (code === 'TOKEN_EXPIRED' || code === 'INVALID_TOKEN' || code === 'INVALID_CLAIMS') {
+        localStorage.removeItem('rasavanta_auth_token');
+        localStorage.removeItem('rasavanta_user');
+      }
+    }
     if (!error.response) {
       console.info('Backend server is offline or unreachable; using local demo data store.');
     }

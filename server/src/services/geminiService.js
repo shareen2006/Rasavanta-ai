@@ -1,6 +1,6 @@
 const { GoogleGenAI } = require('@google/genai');
 const seedData = require('../seed/seedData.json');
-const { resolveRecipeImage } = require('./recipeImageService');
+const { resolveRecipeImage, generateRecipeImagePrompt } = require('./recipeImageService');
 
 /**
  * Reusable Google Gemini Service for RASAVANTA AI
@@ -393,6 +393,7 @@ class GeminiService {
   "substitutions": [
     { "original": "Ingredient", "substitute": "Alternative", "note": "Why it works" }
   ],
+  "imagePrompt": "Detailed visual food photography description of the plated dish, including colors, gravy texture, key ingredients, garnishes, and serving vessel.",
   "chefTips": "Pro chef tip for maximum flavor extraction"
 }`;
 
@@ -407,6 +408,7 @@ Constraints:
 - Maximum Cooking Time: ${maxTime} minutes
 - Meal Type: ${mealType}
 - Target Language: ${language}
+- Image Prompt: Craft a vivid, photorealistic "imagePrompt" specifically capturing the plated appearance of this exact dish (its texture, gravy, colors, and garnishes).
 
 Output Requirement:
 Return ONLY valid JSON matching this schema exactly with no markdown backticks and no conversational filler:
@@ -449,8 +451,34 @@ ${schemaDefinition}
 
     const prep = Number(recipe.prepTime) || 15;
     const cook = Number(recipe.cookTime) || 20;
-    const matchedCuisine = recipe.cuisine || (cuisine !== 'All' ? cuisine : 'South Indian');
-    const image = resolveRecipeImage(recipe.title || '', matchedCuisine, null);
+    const matchedCuisine = recipe.cuisine || (cuisine !== 'All' ? cuisine : 'Indian');
+    
+    const cleanIngredients = (recipe.ingredients || []).map((ing, idx) => ({
+      name: ing.name || `Ingredient ${idx + 1}`,
+      quantity: Number(ing.quantity) || 1,
+      unit: ing.unit || 'portion',
+      category: ing.category || 'Produce',
+      isAllergen: Boolean(ing.isAllergen),
+      note: ing.note || ''
+    }));
+
+    const imagePrompt =
+      recipe.imagePrompt ||
+      generateRecipeImagePrompt({
+        title: recipe.title,
+        cuisine: matchedCuisine,
+        ingredients: cleanIngredients,
+        diet: recipe.diet || diet,
+        mealType: recipe.mealType
+      });
+
+    const image = resolveRecipeImage({
+      title: recipe.title || '',
+      cuisine: matchedCuisine,
+      ingredients: cleanIngredients,
+      imagePrompt,
+      existingImage: recipe.image || null
+    });
 
     return {
       id: `ai-${idSlug}-${Date.now().toString().slice(-4)}`,
@@ -490,18 +518,12 @@ ${schemaDefinition}
       nutritionSource: 'ICMR-NIN Indian Food Composition Tables (IFCT) & USDA FoodData Central',
       allergens: Array.isArray(recipe.allergens) ? recipe.allergens : ['None'],
       image,
+      imagePrompt,
       rating: 4.9,
       reviewsCount: 1,
       featured: false,
       tags: Array.isArray(recipe.tags) && recipe.tags.length > 0 ? recipe.tags : ['AI Chef', 'Fresh Ingredients', matchedCuisine],
-      ingredients: (recipe.ingredients || []).map((ing, idx) => ({
-        name: ing.name || `Ingredient ${idx + 1}`,
-        quantity: Number(ing.quantity) || 1,
-        unit: ing.unit || 'portion',
-        category: ing.category || 'Produce',
-        isAllergen: Boolean(ing.isAllergen),
-        note: ing.note || ''
-      })),
+      ingredients: cleanIngredients,
       instructions: (recipe.instructions || []).map((step, idx) => ({
         step: step.step || idx + 1,
         title: step.title || `Step ${idx + 1}`,

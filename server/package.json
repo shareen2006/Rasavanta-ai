@@ -9,10 +9,13 @@
     "seed": "node src/seed/seedRecipes.js",
     "test": "node src/comprehensiveE2ETest.js",
     "test:db": "node src/testDbOperations.js",
-    "test:gemini": "node src/testRealGeminiIntegration.js"
+    "test:gemini": "node src/testRealGeminiIntegration.js",
+    "test:security": "node src/testSecuritySuite.js",
+    "migrate:passwords": "node src/scripts/migrate_passwords.js"
   },
   "dependencies": {
     "@google/genai": "^3.5.0",
+    "axios": "^1.21.1",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",

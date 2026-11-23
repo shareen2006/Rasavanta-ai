@@ -5,6 +5,10 @@ import { usePantry } from '../context/PantryContext';
 import { useRecipes } from '../context/RecipeContext';
 import { recipeService } from '../services/recipeService';
 import { RecipeCard } from '../components/recipe/RecipeCard';
+import { Interactive3DCookingStudio } from '../components/studio/Interactive3DCookingStudio';
+import { IngredientsEquipmentSection } from '../components/studio/IngredientsEquipmentSection';
+import { YouTubeTutorialsSection } from '../components/studio/YouTubeTutorialsSection';
+import { StepByStepCookingMode } from '../components/studio/StepByStepCookingMode';
 import { 
   Sparkles, 
   Plus, 
@@ -18,7 +22,12 @@ import {
   CheckCircle2, 
   AlertCircle,
   HelpCircle,
-  ArrowRight
+  ArrowRight,
+  Box,
+  Tv,
+  FileText,
+  Utensils,
+  Layers
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { POPULAR_INGREDIENTS, CUISINES_LIST } from '../data/recipesData';
@@ -31,6 +40,9 @@ export const AIKitchen = () => {
   const navigate = useNavigate();
   const { items: pantryItems } = usePantry();
   const { saveToCookbook, isSavedInCookbook } = useRecipes();
+
+  // Active Studio Mode Tab (overview | 3d | ingredients | steps | videos)
+  const [activeStudioTab, setActiveStudioTab] = useState('overview');
 
   // Ingredient state
   const [ingredients, setIngredients] = useState(() => {
@@ -431,99 +443,340 @@ export const AIKitchen = () => {
             {!isGenerating && generatedResults && (
               <div className="space-y-6">
                 
-                {/* Hero Top Generated Recipe */}
+                {/* ── UNIFIED RASA GEN AI RECIPE STUDIO VIEWPORT ────────── */}
                 {generatedResults[0] && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="overflow-hidden rounded-3xl bg-white border-2 border-[#D99A38] shadow-card-hover"
-                  >
-                    <div className="relative aspect-16/9 w-full bg-[#FAF8F2]">
-                      <img
-                        src={generatedResults[0].image}
-                        alt={generatedResults[0].title}
-                        className="h-full w-full object-cover"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                      
-                      <div className="absolute top-4 left-4 flex flex-wrap gap-2">
-                        <span className="flex items-center gap-1 rounded-full bg-[#244B39] px-3.5 py-1 text-xs font-bold text-white shadow-md">
-                          <Sparkles className="h-3.5 w-3.5 text-[#D99A38]" />
-                          Top AI Match ({generatedResults[0].matchScore}%)
-                        </span>
-                        <span className="rounded-full bg-white/90 backdrop-blur-md px-3 py-1 text-xs font-bold text-[#244B39]">
-                          {generatedResults[0].cuisine}
-                        </span>
-                      </div>
+                  <div className="space-y-6">
+                    {/* Studio Mode Navigation Bar */}
+                    <div className="flex items-center gap-1.5 p-1.5 rounded-2xl bg-white border border-[#A7B99A]/30 shadow-sm overflow-x-auto scrollbar-none">
+                      <button
+                        type="button"
+                        onClick={() => setActiveStudioTab('overview')}
+                        className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold shrink-0 transition ${
+                          activeStudioTab === 'overview'
+                            ? 'bg-[#244B39] text-white shadow-sm'
+                            : 'text-[#566459] hover:text-[#244B39] hover:bg-[#FAF8F2]'
+                        }`}
+                      >
+                        <Sparkles className="h-3.5 w-3.5 text-[#D99A38]" />
+                        <span>Dish Overview</span>
+                      </button>
 
-                      <div className="absolute bottom-4 left-4 right-4 text-white">
-                        <h2 className="font-serif text-2xl sm:text-3xl font-bold">
-                          {generatedResults[0].title}
-                        </h2>
-                        <p className="text-xs sm:text-sm text-white/90 mt-1 line-clamp-2">
-                          {generatedResults[0].description}
-                        </p>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setActiveStudioTab('3d')}
+                        className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold shrink-0 transition ${
+                          activeStudioTab === '3d'
+                            ? 'bg-[#244B39] text-white shadow-sm'
+                            : 'text-[#566459] hover:text-[#244B39] hover:bg-[#FAF8F2]'
+                        }`}
+                      >
+                        <Box className="h-3.5 w-3.5 text-[#D99A38]" />
+                        <span>Interactive 3D Studio</span>
+                        <span className="rounded-full bg-[#D99A38] text-[10px] font-extrabold text-[#131A15] px-1.5 py-0.2">3D</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setActiveStudioTab('ingredients')}
+                        className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold shrink-0 transition ${
+                          activeStudioTab === 'ingredients'
+                            ? 'bg-[#244B39] text-white shadow-sm'
+                            : 'text-[#566459] hover:text-[#244B39] hover:bg-[#FAF8F2]'
+                        }`}
+                      >
+                        <Utensils className="h-3.5 w-3.5 text-[#D99A38]" />
+                        <span>Ingredients & Equipment</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setActiveStudioTab('steps')}
+                        className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold shrink-0 transition ${
+                          activeStudioTab === 'steps'
+                            ? 'bg-[#244B39] text-white shadow-sm'
+                            : 'text-[#566459] hover:text-[#244B39] hover:bg-[#FAF8F2]'
+                        }`}
+                      >
+                        <FileText className="h-3.5 w-3.5 text-[#D99A38]" />
+                        <span>Step-by-Step Method</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setActiveStudioTab('videos')}
+                        className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold shrink-0 transition ${
+                          activeStudioTab === 'videos'
+                            ? 'bg-[#244B39] text-white shadow-sm'
+                            : 'text-[#566459] hover:text-[#244B39] hover:bg-[#FAF8F2]'
+                        }`}
+                      >
+                        <Tv className="h-3.5 w-3.5 text-[#D97556]" />
+                        <span>Chef Video Tutorials</span>
+                      </button>
                     </div>
 
-                    {/* Metadata & Actions */}
-                    <div className="p-6 space-y-6">
-                      <div className="grid grid-cols-4 gap-2 text-center text-xs border-b border-[#F5F0E5] pb-4">
-                        <div>
-                          <div className="text-[#566459]">Cook Time</div>
-                          <div className="font-bold text-[#244B39] text-sm mt-0.5">{generatedResults[0].cookTime} min</div>
-                        </div>
-                        <div>
-                          <div className="text-[#566459]">Servings</div>
-                          <div className="font-bold text-[#244B39] text-sm mt-0.5">{generatedResults[0].servings}</div>
-                        </div>
-                        <div>
-                          <div className="text-[#566459]">Calories</div>
-                          <div className="font-bold text-[#D97556] text-sm mt-0.5">{generatedResults[0].calories} kcal</div>
-                        </div>
-                        <div>
-                          <div className="text-[#566459]">Difficulty</div>
-                          <div className="font-bold text-[#244B39] text-sm mt-0.5">{generatedResults[0].difficulty}</div>
-                        </div>
-                      </div>
-
-                      {/* Ingredients Preview */}
-                      <div>
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-[#303A32] mb-2">
-                          Ingredients Used:
-                        </h4>
-                        <div className="flex flex-wrap gap-1.5">
-                          {generatedResults[0].ingredients.map((ing, idx) => (
-                            <span
-                              key={idx}
-                              className="rounded-full bg-[#FAF8F2] border border-[#A7B99A]/30 px-3 py-1 text-xs font-medium text-[#244B39]"
-                            >
-                              {ing.quantity} {ing.unit} {ing.name}
+                    {/* Tab 1: Dish Overview & Plating */}
+                    {activeStudioTab === 'overview' && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 15 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="overflow-hidden rounded-3xl bg-white border-2 border-[#D99A38] shadow-card-hover"
+                      >
+                        <div className="relative aspect-16/9 w-full bg-[#FAF8F2] overflow-hidden">
+                          <img
+                            src={generatedResults[0].image}
+                            alt={generatedResults[0].title}
+                            className="h-full w-full object-cover transition-transform duration-700 ease-out hover:scale-105"
+                            loading="lazy"
+                            onError={(e) => {
+                              e.target.onerror = null;
+                              e.target.src = '/images/rasavanta-recipe-placeholder.svg';
+                            }}
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
+                          
+                          <div className="absolute top-4 left-4 flex flex-wrap gap-2">
+                            <span className="flex items-center gap-1 rounded-full bg-[#244B39] px-3.5 py-1 text-xs font-bold text-white shadow-md">
+                              <Sparkles className="h-3.5 w-3.5 text-[#D99A38]" />
+                              Top AI Match ({generatedResults[0].matchScore || 98}%)
                             </span>
-                          ))}
-                        </div>
-                      </div>
+                            <span className="rounded-full bg-white/90 backdrop-blur-md px-3 py-1 text-xs font-bold text-[#244B39]">
+                              {generatedResults[0].cuisine}
+                            </span>
+                            {generatedResults[0].diet && (
+                              <span className="rounded-full bg-[#D97556]/90 backdrop-blur-md px-3 py-1 text-xs font-bold text-white">
+                                {generatedResults[0].diet}
+                              </span>
+                            )}
+                          </div>
 
-                      {/* CTAs */}
-                      <div className="flex flex-wrap gap-3 pt-2">
-                        <button
-                          type="button"
-                          onClick={() => saveToCookbook(generatedResults[0])}
-                          className="flex-1 rounded-2xl border border-[#244B39] py-3 text-xs font-bold text-[#244B39] hover:bg-[#244B39]/5 transition"
-                        >
-                          {isSavedInCookbook(generatedResults[0].id) ? 'Saved in Cookbook ✓' : 'Save to Cookbook'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => navigate(`/recipes/${generatedResults[0].id}`)}
-                          className="flex-1 rounded-2xl bg-[#244B39] py-3 text-xs font-bold text-white shadow-md hover:bg-[#193527] transition flex items-center justify-center gap-1.5"
-                        >
-                          <span>Open Full Cooking Method</span>
-                          <ArrowRight className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </motion.div>
+                          <div className="absolute top-4 right-4 hidden sm:block">
+                            <span className="flex items-center gap-1 rounded-full bg-black/60 backdrop-blur-md px-3 py-1 text-[11px] font-medium text-white/90 shadow-md">
+                              <ChefHat className="h-3.5 w-3.5 text-[#D99A38]" />
+                              Culinary Visual Matched
+                            </span>
+                          </div>
+
+                          <div className="absolute bottom-4 left-4 right-4 text-white">
+                            <h2 className="font-serif text-2xl sm:text-3xl font-bold">
+                              {generatedResults[0].title}
+                            </h2>
+                            <p className="text-xs sm:text-sm text-white/90 mt-1 line-clamp-2">
+                              {generatedResults[0].description}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Metadata & Actions */}
+                        <div className="p-6 space-y-6">
+                          <div className="grid grid-cols-4 gap-2 text-center text-xs border-b border-[#F5F0E5] pb-4">
+                            <div>
+                              <div className="text-[#566459]">Cook Time</div>
+                              <div className="font-bold text-[#244B39] text-sm mt-0.5">{generatedResults[0].cookTime} min</div>
+                            </div>
+                            <div>
+                              <div className="text-[#566459]">Servings</div>
+                              <div className="font-bold text-[#244B39] text-sm mt-0.5">{generatedResults[0].servings}</div>
+                            </div>
+                            <div>
+                              <div className="text-[#566459]">Calories</div>
+                              <div className="font-bold text-[#D97556] text-sm mt-0.5">{generatedResults[0].calories} kcal</div>
+                            </div>
+                            <div>
+                              <div className="text-[#566459]">Difficulty</div>
+                              <div className="font-bold text-[#244B39] text-sm mt-0.5">{generatedResults[0].difficulty}</div>
+                            </div>
+                          </div>
+
+                          {/* Interactive Studio Module Jumpers */}
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <button
+                              type="button"
+                              onClick={() => setActiveStudioTab('3d')}
+                              className="rounded-2xl border border-[#D99A38]/50 bg-[#FAF8F2] p-3 text-left hover:border-[#D99A38] hover:shadow-sm transition group"
+                            >
+                              <div className="flex items-center justify-between text-[#244B39] mb-1">
+                                <span className="font-bold text-xs flex items-center gap-1.5">
+                                  <Box className="h-4 w-4 text-[#D99A38]" />
+                                  3D Cooking Studio
+                                </span>
+                                <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
+                              </div>
+                              <p className="text-[11px] text-[#566459]">
+                                Watch simulated pan chopping, sizzling & simmering in WebGL 3D.
+                              </p>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => setActiveStudioTab('ingredients')}
+                              className="rounded-2xl border border-[#A7B99A]/40 bg-[#FAF8F2] p-3 text-left hover:border-[#244B39] hover:shadow-sm transition group"
+                            >
+                              <div className="flex items-center justify-between text-[#244B39] mb-1">
+                                <span className="font-bold text-xs flex items-center gap-1.5">
+                                  <Utensils className="h-4 w-4 text-[#D99A38]" />
+                                  Visual Ingredients
+                                </span>
+                                <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
+                              </div>
+                              <p className="text-[11px] text-[#566459]">
+                                Explore real ingredient photos, equipment, and kitchen checklist.
+                              </p>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => setActiveStudioTab('videos')}
+                              className="rounded-2xl border border-[#D97556]/40 bg-[#FAF8F2] p-3 text-left hover:border-[#D97556] hover:shadow-sm transition group"
+                            >
+                              <div className="flex items-center justify-between text-[#D97556] mb-1">
+                                <span className="font-bold text-xs flex items-center gap-1.5">
+                                  <Tv className="h-4 w-4 text-[#D97556]" />
+                                  Video Masterclasses
+                                </span>
+                                <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
+                              </div>
+                              <p className="text-[11px] text-[#566459]">
+                                Stream master chef cooking tutorials in English, Hindi & Telugu.
+                              </p>
+                            </button>
+                          </div>
+
+                          {/* Chef Tips if provided */}
+                          {generatedResults[0].chefTips && (
+                            <div className="rounded-2xl bg-[#F5F0E5]/60 p-4 border border-[#A7B99A]/30 flex items-start gap-3">
+                              <ChefHat className="h-5 w-5 text-[#D99A38] shrink-0 mt-0.5" />
+                              <div>
+                                <h4 className="font-bold text-xs text-[#244B39] uppercase tracking-wider">
+                                  Master Chef Pro Tip:
+                                </h4>
+                                <p className="text-xs text-[#566459] mt-0.5">
+                                  {generatedResults[0].chefTips}
+                                </p>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* CTAs */}
+                          <div className="flex flex-wrap gap-3 pt-2">
+                            <button
+                              type="button"
+                              onClick={() => saveToCookbook(generatedResults[0])}
+                              className="flex-1 rounded-2xl border border-[#244B39] py-3 text-xs font-bold text-[#244B39] hover:bg-[#244B39]/5 transition"
+                            >
+                              {isSavedInCookbook(generatedResults[0].id) ? 'Saved in Cookbook ✓' : 'Save to Cookbook'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setActiveStudioTab('steps')}
+                              className="flex-1 rounded-2xl bg-[#244B39] py-3 text-xs font-bold text-white shadow-md hover:bg-[#193527] transition flex items-center justify-center gap-1.5"
+                            >
+                              <span>Start Interactive Cooking Mode</span>
+                              <ArrowRight className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+
+                    {/* Tab 2: Interactive 3D Cooking Studio */}
+                    {activeStudioTab === '3d' && (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.98 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.25 }}
+                      >
+                        <Interactive3DCookingStudio recipe={generatedResults[0]} />
+                      </motion.div>
+                    )}
+
+                    {/* Tab 3: Visual Ingredients & Equipment */}
+                    {activeStudioTab === 'ingredients' && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 15 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="rounded-3xl bg-white border border-[#A7B99A]/30 p-6 shadow-sm"
+                      >
+                        <IngredientsEquipmentSection
+                          ingredients={generatedResults[0].ingredients}
+                          equipment={generatedResults[0].equipment}
+                          substitutions={generatedResults[0].substitutions}
+                        />
+                      </motion.div>
+                    )}
+
+                    {/* Tab 4: Step-by-Step Cooking Mode */}
+                    {activeStudioTab === 'steps' && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 15 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="space-y-8"
+                      >
+                        {/* Immersive Cooking Mode Component */}
+                        <StepByStepCookingMode recipe={generatedResults[0]} />
+
+                        {/* Complete Sequence Checklist */}
+                        <div className="rounded-3xl bg-white border border-[#A7B99A]/30 p-6 shadow-sm space-y-6">
+                          <div className="flex items-center gap-2 border-b border-[#A7B99A]/30 pb-4">
+                            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#244B39] text-[#FAF8F2] shadow-sm">
+                              <FileText className="h-4 w-4 text-[#D99A38]" />
+                            </span>
+                            <div>
+                              <h3 className="font-serif text-2xl font-bold text-[#244B39]">
+                                Full Sequential Checklist
+                              </h3>
+                              <p className="text-xs text-[#566459]">
+                                Complete chronological recipe instructions for reference.
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="space-y-4">
+                            {(generatedResults[0].instructions || []).map((step, idx) => (
+                              <div
+                                key={idx}
+                                className="rounded-2xl border border-[#A7B99A]/30 p-4 bg-[#FAF8F2]/60 hover:bg-white hover:border-[#244B39]/40 transition space-y-2"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span className="flex items-center gap-2">
+                                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#244B39] text-white text-xs font-bold">
+                                      {step.step || idx + 1}
+                                    </span>
+                                    <h4 className="font-serif font-bold text-sm text-[#244B39]">
+                                      {step.title || `Step ${idx + 1}`}
+                                    </h4>
+                                  </span>
+                                  {step.timerSeconds > 0 && (
+                                    <span className="flex items-center gap-1 rounded-full bg-[#244B39]/10 px-2.5 py-0.5 text-xs font-semibold text-[#244B39]">
+                                      <Clock className="h-3 w-3" />
+                                      {step.timerSeconds}s
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-xs sm:text-sm text-[#566459] pl-8">
+                                  {typeof step === 'string' ? step : step.text}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+
+                    {/* Tab 5: Watch Cooking Videos */}
+                    {activeStudioTab === 'videos' && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 15 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="rounded-3xl bg-white border border-[#A7B99A]/30 p-6 shadow-sm"
+                      >
+                        <YouTubeTutorialsSection
+                          recipe={generatedResults[0]}
+                          tutorials={generatedResults[0].tutorials}
+                        />
+                      </motion.div>
+                    )}
+                  </div>
                 )}
 
                 {/* Additional Match Cards */}

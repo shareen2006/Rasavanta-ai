@@ -5,6 +5,7 @@ const recipeController = require('../controllers/recipeController');
 // Recipe discovery & filtering routes
 router.get('/', recipeController.getRecipes);
 router.get('/categories', recipeController.getCategories);
+router.get('/tutorials/youtube', recipeController.getYouTubeTutorials);
 router.get('/:id', recipeController.getRecipeById);
 router.post('/:id/favorite', recipeController.toggleFavorite);
 

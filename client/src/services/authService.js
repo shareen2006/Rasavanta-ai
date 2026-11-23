@@ -45,7 +45,16 @@ export const authService = {
       }
       return response.data;
     } catch (apiError) {
-      // Offline fallback: validate against seeded demo chef and local registered accounts
+      // If server is reachable and returned an HTTP response (e.g. 400, 401, 409), throw actual error
+      if (apiError.response) {
+        const serverMsg = apiError.response.data?.message || 'Invalid email or password. Please verify credentials.';
+        const err = new Error(serverMsg);
+        err.response = apiError.response;
+        err.code = apiError.response.data?.code || 'AUTH_ERROR';
+        throw err;
+      }
+
+      // Offline fallback only when backend is completely unreachable
       await new Promise((resolve) => setTimeout(resolve, 500));
 
       const accounts = getStoredAccounts();
@@ -86,6 +95,15 @@ export const authService = {
       }
       return response.data;
     } catch (apiError) {
+      // If server is reachable and returned an error (e.g. 400 validation, 409 duplicate), propagate cleanly
+      if (apiError.response) {
+        const serverMsg = apiError.response.data?.message || 'Registration failed.';
+        const err = new Error(serverMsg);
+        err.response = apiError.response;
+        err.code = apiError.response.data?.code || 'REGISTRATION_ERROR';
+        throw err;
+      }
+
       await new Promise((resolve) => setTimeout(resolve, 600));
 
       const accounts = getStoredAccounts();

@@ -10,6 +10,14 @@ try {
   console.warn('[DNS Warning] Could not set custom DNS servers:', dnsErr.message);
 }
 
+// Attach persistent error & disconnect listeners to prevent unhandled EventEmitter crash
+mongoose.connection.on('error', (err) => {
+  console.warn('[MongoDB Atlas Runtime Warning]:', err.message);
+});
+mongoose.connection.on('disconnected', () => {
+  console.warn('[MongoDB Atlas] Connection closed or unavailable. Server operating in resilient memory fallback mode.');
+});
+
 function sanitizeMongoUri(rawUri) {
   if (!rawUri || !rawUri.startsWith('mongodb')) return rawUri;
   try {

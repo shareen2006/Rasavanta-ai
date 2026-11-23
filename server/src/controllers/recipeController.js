@@ -1,6 +1,8 @@
 const Recipe = require('../models/Recipe');
 const seedData = require('../seed/seedData.json');
 const geminiService = require('../services/geminiService');
+const { enrichRecipeVisuals } = require('../services/ingredientVisualService');
+const { getRecipeTutorials } = require('../services/youtubeService');
 
 /**
  * Controller for comprehensive Recipe operations
@@ -288,12 +290,30 @@ exports.generateRecipe = async (req, res) => {
           language
         });
 
+        // Enrich recipe with realistic ingredient photographs and equipment
+        const visuallyEnriched = enrichRecipeVisuals(geminiResult.recipe);
+
+        // Fetch matched YouTube cooking tutorials
+        let tutorials = {};
+        try {
+          const tutorialResult = await getRecipeTutorials({
+            title: visuallyEnriched.title,
+            cuisine: visuallyEnriched.cuisine,
+            language
+          });
+          tutorials = tutorialResult.videos || {};
+        } catch (tErr) {
+          console.warn('[RecipeController] Failed to fetch tutorials:', tErr.message);
+        }
+
+        visuallyEnriched.tutorials = tutorials;
+
         // Persist newly generated AI recipe into MongoDB Atlas if connected
-        if (isDbConnected && geminiResult.recipe) {
+        if (isDbConnected && visuallyEnriched) {
           try {
             await Recipe.findOneAndUpdate(
-              { id: geminiResult.recipe.id },
-              geminiResult.recipe,
+              { id: visuallyEnriched.id },
+              visuallyEnriched,
               { upsert: true, new: true, setDefaultsOnInsert: true }
             );
           } catch (dbErr) {
@@ -303,9 +323,9 @@ exports.generateRecipe = async (req, res) => {
 
         return res.status(200).json({
           success: true,
-          message: 'AI recipe synthesis generated via Gemini',
-          recipe: geminiResult.recipe,
-          recipes: [geminiResult.recipe],
+          message: 'AI recipe synthesis generated via Gemini with Visuals & Tutorials',
+          recipe: visuallyEnriched,
+          recipes: [visuallyEnriched],
           source: geminiResult.source,
           model: geminiResult.model,
           isDemo: false
@@ -343,11 +363,29 @@ exports.generateRecipe = async (req, res) => {
       matchedRecipes = seedData.slice(0, 3);
     }
 
+    // Enrich fallback recipes with visuals and tutorials
+    const enrichedFallbacks = await Promise.all(
+      matchedRecipes.map(async (r) => {
+        const enriched = enrichRecipeVisuals(r);
+        try {
+          const tutorialResult = await getRecipeTutorials({
+            title: enriched.title,
+            cuisine: enriched.cuisine,
+            language
+          });
+          enriched.tutorials = tutorialResult.videos || {};
+        } catch {
+          enriched.tutorials = {};
+        }
+        return enriched;
+      })
+    );
+
     return res.status(200).json({
       success: true,
-      message: 'Culinary synthesis complete (catalog fallback)',
-      recipes: matchedRecipes,
-      recipe: matchedRecipes[0],
+      message: 'Culinary synthesis complete (catalog fallback with visuals)',
+      recipes: enrichedFallbacks,
+      recipe: enrichedFallbacks[0],
       userIngredients: userIngs,
       source: 'offline-catalog-fallback',
       isDemo: true
@@ -377,6 +415,23 @@ exports.toggleFavorite = async (req, res) => {
       recipeId: id,
       isFavorite,
       favorites: inMemoryFavorites
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+/**
+ * On-demand YouTube cooking tutorials lookup
+ * GET /api/recipes/tutorials/youtube?title=...&cuisine=...&language=...
+ */
+exports.getYouTubeTutorials = async (req, res) => {
+  try {
+    const { title = '', cuisine = 'Indian', language = 'en' } = req.query;
+    const result = await getRecipeTutorials({ title, cuisine, language });
+    return res.status(200).json({
+      success: true,
+      ...result
     });
   } catch (error) {
     return res.status(500).json({ success: false, error: error.message });
