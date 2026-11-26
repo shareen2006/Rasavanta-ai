@@ -28,7 +28,8 @@ import {
   AlertCircle,
   Calendar,
   ChefHat,
-  ArrowUpRight
+  ArrowUpRight,
+  Mail
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -112,6 +113,28 @@ export const Dashboard = () => {
             </Link>
           </div>
         </div>
+
+        {/* Email Verification Banner */}
+        {user && user.isVerified === false && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 p-4 border border-amber-300 text-xs text-amber-950 shadow-xs">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-amber-200/70 flex items-center justify-center shrink-0 text-amber-800">
+                <Mail className="h-4 w-4" />
+              </div>
+              <div>
+                <span className="font-bold text-sm block sm:inline">Verify your email address:</span>{' '}
+                <span className="text-amber-800">Please verify <strong>{user.email}</strong> to secure your account and access all features.</span>
+              </div>
+            </div>
+            <Link
+              to="/verify-email"
+              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 bg-[#244B39] text-[#D99A38] hover:bg-[#1A382A] font-bold rounded-lg transition-all shrink-0 self-start sm:self-auto"
+            >
+              <span>Verify / Resend</span>
+              <ArrowUpRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+        )}
 
         {/* Clear Demo Notice */}
         <div className="flex items-center gap-3 rounded-2xl bg-amber-50 p-4 border border-amber-200 text-xs text-amber-900 shadow-xs">

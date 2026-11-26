@@ -51,6 +51,22 @@ const UserSchema = new mongoose.Schema({
     cuisine: { type: String, default: 'All' },
     diet: { type: String, default: 'All' },
     language: { type: String, default: 'en' }
+  },
+  isVerified: {
+    type: Boolean,
+    default: false,
+    index: true
+  },
+  verificationToken: {
+    type: String,
+    sparse: true,
+    index: true
+  },
+  verificationTokenExpiresAt: {
+    type: Date
+  },
+  lastVerificationSentAt: {
+    type: Date
   }
 }, {
   timestamps: true

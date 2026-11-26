@@ -1,8 +1,10 @@
+const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { OAuth2Client } = require('google-auth-library');
 const { getJwtSecret } = require('../middleware/authMiddleware');
+const emailService = require('../services/emailService');
 
 const googleClient = new OAuth2Client(
   process.env.GOOGLE_CLIENT_ID || '627856945618-viqvi6i8lg353ovl8om3uett19dk6v2q.apps.googleusercontent.com'
@@ -17,7 +19,8 @@ const DEMO_CHEF = {
   email: 'chef.rasavanta@example.com',
   password: 'TasteIntelligence2026', // Plaintext seed; migrated to bcrypt dynamically on first login
   role: 'Master Chef',
-  avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80'
+  avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+  isVerified: true
 };
 
 const inMemoryUsers = [DEMO_CHEF];
@@ -61,6 +64,7 @@ const sanitizeUser = (userDoc) => {
   const obj = userDoc.toObject ? userDoc.toObject() : { ...userDoc };
   delete obj.password;
   delete obj.__v;
+  delete obj.verificationToken; // Never expose verification token
   return obj;
 };
 
@@ -242,6 +246,11 @@ exports.register = async (req, res) => {
     const salt = await bcrypt.genSalt(BCRYPT_ROUNDS);
     const hashedPassword = await bcrypt.hash(password, salt);
 
+    // Generate cryptographic email verification token (24-hour expiration)
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const verificationTokenExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const lastVerificationSentAt = new Date();
+
     if (isDbConnected()) {
       const existing = await User.findOne({ email: cleanEmail });
       if (existing) {
@@ -264,8 +273,29 @@ exports.register = async (req, res) => {
           cuisine: 'All',
           diet: 'All',
           language: 'en'
-        }
+        },
+        isVerified: false,
+        verificationToken,
+        verificationTokenExpiresAt,
+        lastVerificationSentAt
       });
+
+      // Dispatch verification email via Resend
+      let emailSent = false;
+      let emailNotice = null;
+      if (emailService.isConfigured()) {
+        try {
+          await emailService.sendVerificationEmail({
+            to: cleanEmail,
+            name: cleanName,
+            token: verificationToken
+          });
+          emailSent = true;
+        } catch (emailErr) {
+          console.warn('[Registration Email Warning]', emailErr.message);
+          emailNotice = emailErr.message;
+        }
+      }
 
       const token = signUserToken(newUser);
       const safeUser = sanitizeUser(newUser);
@@ -274,6 +304,8 @@ exports.register = async (req, res) => {
         success: true,
         token,
         user: safeUser,
+        emailSent,
+        emailNotice,
         source: 'mongodb'
       });
     }
@@ -300,9 +332,29 @@ exports.register = async (req, res) => {
         cuisine: 'All',
         diet: 'All',
         language: 'en'
-      }
+      },
+      isVerified: false,
+      verificationToken,
+      verificationTokenExpiresAt,
+      lastVerificationSentAt
     };
     inMemoryUsers.push(newMemUser);
+
+    let emailSent = false;
+    let emailNotice = null;
+    if (emailService.isConfigured()) {
+      try {
+        await emailService.sendVerificationEmail({
+          to: cleanEmail,
+          name: cleanName,
+          token: verificationToken
+        });
+        emailSent = true;
+      } catch (emailErr) {
+        console.warn('[Registration Email Warning]', emailErr.message);
+        emailNotice = emailErr.message;
+      }
+    }
 
     const token = signUserToken(newMemUser);
     const safeUser = sanitizeUser(newMemUser);
@@ -311,6 +363,8 @@ exports.register = async (req, res) => {
       success: true,
       token,
       user: safeUser,
+      emailSent,
+      emailNotice,
       source: 'memory'
     });
   } catch (error) {
@@ -519,6 +573,204 @@ exports.googleAuth = async (req, res) => {
       success: false,
       message: 'Failed to authenticate with Google.',
       code: 'GOOGLE_AUTH_ERROR'
+    });
+  }
+};
+
+/**
+ * Verify Email Address
+ * GET / POST /api/v1/auth/verify-email
+ */
+exports.verifyEmail = async (req, res) => {
+  try {
+    const token = (req.body?.token || req.query?.token || '').trim();
+
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        message: 'Verification token is required.',
+        code: 'MISSING_TOKEN'
+      });
+    }
+
+    if (isDbConnected()) {
+      const user = await User.findOne({ verificationToken: token });
+
+      if (!user) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid or already used verification token.',
+          code: 'INVALID_TOKEN'
+        });
+      }
+
+      // Check token expiration
+      if (user.verificationTokenExpiresAt && new Date(user.verificationTokenExpiresAt) < new Date()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Verification token has expired. Please request a new one.',
+          code: 'TOKEN_EXPIRED',
+          email: user.email
+        });
+      }
+
+      user.isVerified = true;
+      user.verificationToken = undefined;
+      user.verificationTokenExpiresAt = undefined;
+      await user.save();
+
+      const safeUser = sanitizeUser(user);
+      return res.status(200).json({
+        success: true,
+        message: 'Email address verified successfully! Your account is active.',
+        user: safeUser,
+        source: 'mongodb'
+      });
+    }
+
+    // In-memory fallback
+    const memUser = inMemoryUsers.find(u => u.verificationToken === token);
+    if (!memUser) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or already used verification token.',
+        code: 'INVALID_TOKEN'
+      });
+    }
+
+    if (memUser.verificationTokenExpiresAt && new Date(memUser.verificationTokenExpiresAt) < new Date()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Verification token has expired. Please request a new one.',
+        code: 'TOKEN_EXPIRED',
+        email: memUser.email
+      });
+    }
+
+    memUser.isVerified = true;
+    delete memUser.verificationToken;
+    delete memUser.verificationTokenExpiresAt;
+
+    const safeUser = sanitizeUser(memUser);
+    return res.status(200).json({
+      success: true,
+      message: 'Email address verified successfully! Your account is active.',
+      user: safeUser,
+      source: 'memory'
+    });
+  } catch (error) {
+    console.error('Error in verifyEmail:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'An unexpected error occurred while verifying email.',
+      code: 'VERIFY_ERROR'
+    });
+  }
+};
+
+/**
+ * Resend Email Verification with Cooldown Guard
+ * POST /api/v1/auth/resend-verification
+ */
+exports.resendVerification = async (req, res) => {
+  try {
+    const rawEmail = req.body?.email || req.user?.email || '';
+    const cleanEmail = rawEmail.trim().toLowerCase();
+
+    if (!cleanEmail || !isValidEmail(cleanEmail)) {
+      return res.status(400).json({
+        success: false,
+        message: 'A valid email address is required to resend verification.',
+        code: 'INVALID_EMAIL'
+      });
+    }
+
+    const COOLDOWN_SECONDS = 60;
+    const COOLDOWN_MS = COOLDOWN_SECONDS * 1000;
+
+    let targetUser = null;
+    let isDb = false;
+
+    if (isDbConnected()) {
+      targetUser = await User.findOne({ email: cleanEmail });
+      isDb = true;
+    } else {
+      targetUser = inMemoryUsers.find(u => u.email.toLowerCase() === cleanEmail);
+    }
+
+    if (!targetUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'No account found with this email address.',
+        code: 'USER_NOT_FOUND'
+      });
+    }
+
+    if (targetUser.isVerified) {
+      return res.status(400).json({
+        success: false,
+        message: 'This account email is already verified.',
+        code: 'ALREADY_VERIFIED'
+      });
+    }
+
+    // Cooldown check (60s minimum interval)
+    if (targetUser.lastVerificationSentAt) {
+      const elapsed = Date.now() - new Date(targetUser.lastVerificationSentAt).getTime();
+      if (elapsed < COOLDOWN_MS) {
+        const remainingSeconds = Math.ceil((COOLDOWN_MS - elapsed) / 1000);
+        return res.status(429).json({
+          success: false,
+          message: `Please wait ${remainingSeconds}s before requesting another verification email.`,
+          code: 'RESEND_COOLDOWN',
+          retryAfterSeconds: remainingSeconds
+        });
+      }
+    }
+
+    // Generate new token & 24h expiration
+    const newToken = crypto.randomBytes(32).toString('hex');
+    const newExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    // Attempt email dispatch via Resend
+    let dispatchResult = null;
+    try {
+      dispatchResult = await emailService.sendVerificationEmail({
+        to: cleanEmail,
+        name: targetUser.name,
+        token: newToken
+      });
+    } catch (dispatchErr) {
+      console.error('[Resend Error in resendVerification]', dispatchErr.message);
+      return res.status(dispatchErr.statusCode || 502).json({
+        success: false,
+        message: dispatchErr.message || 'Email delivery service temporarily unavailable.',
+        code: dispatchErr.code || 'EMAIL_DISPATCH_FAILED'
+      });
+    }
+
+    // Only update and persist token AFTER Resend accepted the email request
+    targetUser.verificationToken = newToken;
+    targetUser.verificationTokenExpiresAt = newExpiresAt;
+    targetUser.lastVerificationSentAt = new Date();
+
+    if (isDb) {
+      await targetUser.save();
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Verification email sent successfully. Please check your inbox.',
+      email: cleanEmail,
+      dispatchId: dispatchResult.id,
+      cooldownSeconds: COOLDOWN_SECONDS
+    });
+  } catch (error) {
+    console.error('Error in resendVerification:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'An unexpected error occurred while processing your request.',
+      code: 'RESEND_ERROR'
     });
   }
 };

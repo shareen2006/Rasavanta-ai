@@ -20,6 +20,10 @@ const allowedOrigins = [
   'http://localhost:3000'
 ];
 
+if (process.env.CLIENT_URL && !allowedOrigins.includes(process.env.CLIENT_URL)) {
+  allowedOrigins.push(process.env.CLIENT_URL.trim().replace(/\/+$/, ''));
+}
+
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin) return callback(null, true);

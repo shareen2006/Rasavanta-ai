@@ -30,7 +30,11 @@ export const AuthProvider = ({ children }) => {
     try {
       const res = await authService.register({ name, email, password });
       setUser(res.user);
-      toast.success('Welcome to Rasavanta AI! Your account is active.');
+      if (res.emailSent) {
+        toast.success('Registration successful! Please check your inbox to verify your email.', { duration: 5000 });
+      } else {
+        toast.success('Welcome to Rasavanta AI! Your account is active.');
+      }
       return res;
     } catch (err) {
       toast.error(err.message || 'Registration failed. Please try again.');

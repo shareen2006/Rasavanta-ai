@@ -169,6 +169,39 @@ export const authService = {
     }
   },
 
+  async verifyEmail(token) {
+    try {
+      const response = await apiClient.post('/auth/verify-email', { token });
+      if (response.data.user) {
+        const current = this.getCurrentUser();
+        if (current && (current.email === response.data.user.email || current.id === response.data.user.id)) {
+          localStorage.setItem(AUTH_USER_KEY, JSON.stringify({ ...current, isVerified: true }));
+        }
+      }
+      return response.data;
+    } catch (apiError) {
+      const msg = apiError.response?.data?.message || apiError.message || 'Verification failed.';
+      const err = new Error(msg);
+      err.response = apiError.response;
+      err.code = apiError.response?.data?.code || 'VERIFICATION_FAILED';
+      throw err;
+    }
+  },
+
+  async resendVerification(email) {
+    try {
+      const response = await apiClient.post('/auth/resend-verification', { email });
+      return response.data;
+    } catch (apiError) {
+      const msg = apiError.response?.data?.message || apiError.message || 'Failed to resend verification email.';
+      const err = new Error(msg);
+      err.response = apiError.response;
+      err.code = apiError.response?.data?.code || 'RESEND_FAILED';
+      err.retryAfterSeconds = apiError.response?.data?.retryAfterSeconds;
+      throw err;
+    }
+  },
+
   getCurrentUser() {
     try {
       const raw = localStorage.getItem(AUTH_USER_KEY);
