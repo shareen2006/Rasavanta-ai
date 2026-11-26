@@ -19,6 +19,7 @@
 [![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev/)
 [![Vite](https://img.shields.io/badge/Vite-6-646CFF?style=flat-square&logo=vite&logoColor=white)](https://vitejs.dev/)
 [![Node.js](https://img.shields.io/badge/Node.js-Express-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org/)
+[![Nodemailer](https://img.shields.io/badge/Email-Gmail%20SMTP%20%2B%20Resend-22B573?style=flat-square&logo=gmail&logoColor=white)](https://nodemailer.com/)
 [![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-47A248?style=flat-square&logo=mongodb&logoColor=white)](https://www.mongodb.com/atlas)
 [![Google Gemini](https://img.shields.io/badge/Google-Gemini%20AI-4285F4?style=flat-square&logo=google&logoColor=white)](https://ai.google.dev/)
 [![JWT](https://img.shields.io/badge/Auth-JWT%20%2B%20bcrypt-000000?style=flat-square&logo=jsonwebtokens&logoColor=white)](https://jwt.io/)
@@ -43,12 +44,15 @@
 - [Backend Architecture](#backend-architecture)
 - [Database Design](#database-design--mongodb-integration)
 - [Authentication & Security](#authentication--security)
+- [Email Verification & Multi-Provider Architecture](#email-verification--multi-provider-architecture)
 - [Google Gemini AI Integration](#google-gemini-ai-integration)
 - [Project Structure](#project-folder-structure)
 - [Application Screenshots](#application-screenshots)
 - [Installation & Setup](#installation--local-setup)
 - [Environment Variables](#environment-variables-configuration)
 - [Running the Application](#running-the-application)
+- [Automated Testing & Security Suites](#automated-testing--security-suites)
+- [Troubleshooting & FAQs](#troubleshooting--faqs)
 - [API Documentation](#api-documentation)
 - [Deployment](#deployment-architecture)
 - [Future Enhancements](#future-enhancements)
@@ -75,6 +79,7 @@ Indian home cooks face several persistent challenges:
 - **Nutritional blind spots** — difficulty tracking macronutrient and micronutrient intake across meals.
 - **Lack of multilingual culinary resources** — mainstream apps rarely support regional Indian languages.
 - **Disconnected tools** — pantry, shopping list, meal planning, and recipe apps are all separate.
+- **Unverified accounts & spam** — security vulnerability without email identity verification and abuse-resistant authentication.
 - **No personalized AI guidance** — existing recipe apps are static; they cannot answer follow-up questions, adapt to user constraints, or troubleshoot cooking in real-time.
 
 ---
@@ -93,6 +98,7 @@ RASAVANTA AI is a unified, intelligent culinary ecosystem that solves every one 
 | Conversational cooking help | RasaBot — Gemini-powered AI chef assistant |
 | Shopping management | Smart Basket with JWT-secured per-user data |
 | Meal planning | Dedicated interactive meal planner module |
+| Account integrity | Cryptographic email verification with 24h tokens and resend cooldowns |
 | Sustainable cooking | Pantry-first recipe suggestions to reduce food waste |
 
 ---
@@ -106,6 +112,7 @@ RASAVANTA AI is a unified, intelligent culinary ecosystem that solves every one 
 | 🧊 **Smart Pantry** | CRUD pantry manager with per-user data isolation and expiry tracking |
 | 🛒 **Smart Basket** | JWT-protected shopping list with server-side user identity enforcement |
 | 📊 **NutriSense Dashboard** | Interactive recharts visualization of macro and micronutrient intake |
+| 📧 **Email Verification** | Dual-provider verification (Gmail SMTP / Resend) with 24h tokens and 60s cooldown |
 | 📚 **Digital Cookbook** | Save, organize, and revisit favorite and AI-generated recipes |
 | 🗓️ **Meal Planner** | Weekly meal planning interface |
 | 🌐 **Multilingual (i18n)** | 9 Indian languages: Telugu, Hindi, Tamil, Kannada, Malayalam, Bengali, Marathi, Gujarati, English |
@@ -133,6 +140,9 @@ A JWT-secured shopping list module. User identity is derived exclusively from th
 
 ### 📊 NutriSense
 An interactive nutrition analytics dashboard built with Recharts: macro distribution (donut), weekly calorie/protein trends (line), micronutrient target vs. actual (bar), pantry health status (donut), and cooking activity (bar).
+
+### 📧 Email Verification Center
+A dedicated verification workflow (`/verify-email`) and dashboard banner ensuring genuine user identity. Handles token validation, single-use guarantees, expiration checks, and throttled resend requests.
 
 ### 📚 Digital Cookbook
 A personal recipe collection page where users can browse, save, and manage their favorite and AI-generated recipes.
@@ -181,6 +191,7 @@ flowchart TD
         B --> C4["Smart Basket"]
         B --> C5["NutriSense Dashboard"]
         B --> C6["Explore Recipes"]
+        B --> C7["Verify Email Page"]
         A --> D["AuthContext + JWT Storage"]
         A --> E["i18next — 9 Languages"]
         A --> F["Framer Motion + Three.js Studio"]
@@ -194,21 +205,31 @@ flowchart TD
         K["Basket Routes — /api/v1/basket"]
         L["RasaBot Routes — /api/v1/rasabot"]
         M["Controllers (auth, pantry, basket, recipes, rasabot)"]
+        EMAIL["emailService (Dual-Provider Dispatch)"]
         
         G -- "GET /me (protected)" --> H
         G -- "POST /login, /register, /google" --> M
+        G -- "POST, GET /verify-email, /resend-verification" --> M
         J -- "router.use(protect)" --> H
         K -- "router.use(protect)" --> H
         H --> M
         I --> M
         L --> M
+        M --> EMAIL
     end
 
     subgraph DB["MongoDB Atlas"]
-        N["User Collection"]
+        N["User Collection (bcrypt + tokens)"]
         O["Recipe Collection"]
         P["PantryItem Collection"]
         Q["ShoppingList Collection"]
+    end
+
+    subgraph EmailProviders["Transactional Email Dispatch"]
+        EP1["Gmail SMTP (Nodemailer + STARTTLS)"]
+        EP2["Resend API (HTTPS REST)"]
+        EMAIL --> EP1
+        EMAIL --> EP2
     end
 
     subgraph AI["Google Gemini AI"]
@@ -253,24 +274,27 @@ flowchart TD
 | Node.js | LTS | Runtime |
 | Express.js | 4.19 | Web framework |
 | Mongoose | 8.4 | MongoDB ODM |
+| Nodemailer | 10.6 | Gmail SMTP & STARTTLS email transport |
+| Resend | 6.38 | Alternative cloud email API provider |
 | @google/genai | 3.5 | Official Google Gemini SDK |
 | jsonwebtoken | 9.0 | JWT signing and verification |
-| bcryptjs | 3.0 | Password hashing |
+| bcryptjs | 3.0 | Password hashing (10 salt rounds) |
 | google-auth-library | 11.3 | Google OAuth 2.0 |
 | cors | 2.8 | Cross-Origin Resource Sharing |
 | morgan | 1.10 | HTTP request logging |
 | dotenv | 16.4 | Environment variable management |
-| resend | 6.38 | Transactional email |
 | axios | 1.21 | Server-side HTTP requests |
 | nodemon | 3.1 | Development hot reload |
 
-### Infrastructure
+### Infrastructure & External Services
 | Service | Purpose |
 |---|---|
 | MongoDB Atlas | Cloud-hosted NoSQL database |
 | Vercel | Frontend hosting and CDN |
 | Render | Backend API hosting |
-| Google Gemini API | AI language model |
+| Gmail SMTP (`smtp.gmail.com:587`) | Direct SMTP email delivery with STARTTLS |
+| Resend API | Alternative transactional email API |
+| Google Gemini API | AI language model (`gemini-3.5-flash-lite`) |
 
 ---
 
@@ -281,7 +305,7 @@ The React frontend follows a **context-based state management** pattern:
 ```
 client/src/
 ├── context/
-│   ├── AuthContext.jsx         # JWT auth state, login/logout/register
+│   ├── AuthContext.jsx         # JWT auth state, login/logout/register, verification toasts
 │   ├── NavigationContext.jsx   # Active route & navigation tracking
 │   ├── PantryContext.jsx       # Per-user pantry state and stats
 │   └── RecipeContext.jsx       # Recipe catalog, favorites, saved
@@ -296,32 +320,34 @@ client/src/
 │   ├── SmartBasketPage.jsx     # Shopping list
 │   ├── NutriSensePage.jsx      # Nutrition analytics
 │   ├── RasaBotPage.jsx         # AI chat interface
-│   ├── Dashboard.jsx           # Analytics overview with charts
+│   ├── Dashboard.jsx           # Analytics overview with charts & verification banner
+│   ├── VerifyEmail.jsx         # Dedicated email verification & resend screen
 │   ├── Login.jsx               # Auth — login
 │   └── Register.jsx            # Auth — registration
 ├── services/
 │   ├── api.js                  # Axios client with Bearer injection & 401 token purge
-│   └── authService.js          # Authentication API calls
+│   └── authService.js          # Authentication, verifyEmail & resendVerification API calls
 └── components/                 # Shared UI components
 ```
 
 **Routing** is handled by React Router DOM v7 with the following public and protected routes:
 
-| Path | Page | Auth Required |
-|---|---|---|
-| `/` | Home | No |
-| `/recipes` | Explore Recipes | No |
-| `/recipes/:id` | Recipe Details | No |
-| `/ai-kitchen` | RasaGen AI Kitchen | No |
-| `/rasabot` | RasaBot Chat | No |
-| `/pantry` | Smart Pantry | Yes |
-| `/basket` / `/smart-basket` | Smart Basket | Yes |
-| `/cookbook` | My Cookbook | Yes |
-| `/meal-planner` | Meal Planner | Yes |
-| `/nutrisense` | NutriSense | Yes |
-| `/dashboard` | Dashboard | Yes |
-| `/login` | Login | No |
-| `/register` | Register | No |
+| Path | Page | Auth Required | Description |
+|---|---|---|---|
+| `/` | Home | No | Landing page |
+| `/recipes` | Explore Recipes | No | Recipe discovery and filtering |
+| `/recipes/:id` | Recipe Details | No | Full recipe view with ingredients & video |
+| `/ai-kitchen` | RasaGen AI Kitchen | No | AI recipe generator |
+| `/rasabot` | RasaBot Chat | No | Conversational AI chef |
+| `/verify-email` | Verify Email | No | Email token verification & resend trigger |
+| `/pantry` | Smart Pantry | Yes | Per-user pantry inventory |
+| `/basket` / `/smart-basket` | Smart Basket | Yes | JWT-secured shopping list |
+| `/cookbook` | My Cookbook | Yes | Saved favorites |
+| `/meal-planner` | Meal Planner | Yes | Weekly planning calendar |
+| `/nutrisense` | NutriSense | Yes | Nutrient charts & metrics |
+| `/dashboard` | Dashboard | Yes | User analytics & account status |
+| `/login` | Login | No | User authentication |
+| `/register` | Register | No | User registration |
 
 ---
 
@@ -336,32 +362,35 @@ server/src/
 ├── config/
 │   └── db.js                   # MongoDB Atlas connection with Mongoose
 ├── middleware/
-│   └── authMiddleware.js       # JWT verification (HS256, fail-secure)
+│   └── authMiddleware.js       # JWT verification (HS256, fail-secure, protect & optionalAuth)
 ├── controllers/
-│   ├── authController.js       # Register, login, /me, Google OAuth
+│   ├── authController.js       # Register, login, /me, verifyEmail, resendVerification, Google OAuth
 │   ├── pantryController.js     # Pantry CRUD with per-user isolation
 │   ├── shoppingListController.js  # Basket with JWT-enforced ownership
 │   ├── recipeController.js     # Recipe listing, filtering, AI generation
 │   └── rasabotController.js    # RasaBot chat endpoint
 ├── models/
-│   ├── User.js                 # User schema with bcrypt hashed passwords
+│   ├── User.js                 # User schema (bcrypt hash, verificationToken, isVerified)
 │   ├── PantryItem.js           # Pantry item with userId ownership
 │   ├── Recipe.js               # Recipe catalog schema
 │   └── ShoppingList.js         # Shopping list with userId
 ├── routes/
-│   ├── authRoutes.js           # /api/v1/auth/*
+│   ├── authRoutes.js           # /api/v1/auth/* (auth & verification routes)
 │   ├── pantryRoutes.js         # /api/v1/pantry/* (protected)
 │   ├── shoppingListRoutes.js   # /api/v1/basket/* (protected)
 │   ├── recipeRoutes.js         # /api/v1/recipes/* (public)
 │   └── rasabotRoutes.js        # /api/v1/rasabot/* (public)
 ├── services/
+│   ├── emailService.js         # Dual-provider email service (Gmail SMTP + Resend)
 │   ├── geminiService.js        # Google Gemini SDK wrapper
 │   └── recipeImageService.js   # Recipe image resolution
 ├── scripts/
 │   └── migrate_passwords.js    # Dry-run password migration helper
-└── seed/
-    ├── seedData.json           # Pan-India recipe catalog
-    └── seedRecipes.js          # Database seeding script
+├── seed/
+│   ├── seedData.json           # Pan-India recipe catalog
+│   └── seedRecipes.js          # Database seeding script
+├── testEmailVerification.js    # Automated multi-provider email & auth test suite (54 checks)
+└── testSecuritySuite.js        # Automated security & data isolation test suite (30 checks)
 ```
 
 ---
@@ -375,21 +404,25 @@ RASAVANTA AI uses **MongoDB Atlas** (`cluster0.sd4gg6y.mongodb.net`) with the `r
 #### User (`models/User.js`)
 ```js
 {
-  id: String,                  // Unique slug (e.g., 'usr-1740540000000', indexed)
-  name: String,                // Full user name (required)
-  email: String,               // Unique, lowercase, indexed
-  password: String,            // bcrypt hash (10 salt rounds; required for 'local')
-  googleId: String,            // Google OAuth subject ID (sparse index)
-  authProvider: String,        // 'local' | 'google'
-  role: String,                // Default: 'Home Chef'
-  avatar: String,              // Profile image URL
-  favoriteRecipes: [String],   // Array of saved recipe slug IDs
+  id: String,                         // Unique slug (e.g., 'usr-1740540000000', indexed)
+  name: String,                       // Full user name (required)
+  email: String,                      // Unique, lowercase, indexed
+  password: String,                   // bcrypt hash (10 salt rounds; required for 'local')
+  googleId: String,                   // Google OAuth subject ID (sparse index)
+  authProvider: String,               // 'local' | 'google'
+  role: String,                       // Default: 'Home Chef'
+  avatar: String,                     // Profile image URL
+  favoriteRecipes: [String],          // Array of saved recipe slug IDs
   preferences: {
-    cuisine: String,           // Default: 'All'
-    diet: String,              // Default: 'All'
-    language: String           // Default: 'en'
+    cuisine: String,                  // Default: 'All'
+    diet: String,                     // Default: 'All'
+    language: String                  // Default: 'en'
   },
-  createdAt: Date,             // Mongoose timestamps
+  isVerified: Boolean,                // Verification state (default: false, indexed)
+  verificationToken: String,          // Cryptographic single-use token (sparse index)
+  verificationTokenExpiresAt: Date,   // 24-hour expiration timestamp
+  lastVerificationSentAt: Date,       // Timestamp for 60s resend cooldown enforcement
+  createdAt: Date,                    // Mongoose timestamps
   updatedAt: Date
 }
 ```
@@ -461,11 +494,13 @@ RASAVANTA AI uses **MongoDB Atlas** (`cluster0.sd4gg6y.mongodb.net`) with the `r
 
 RASAVANTA AI implements a production-grade security layer with the following measures:
 
-### Authentication Flow
+### Authentication & Verification Flow
 
 ```
-Register → bcrypt hash (10 rounds) → store in MongoDB
+Register → bcrypt hash (10 rounds) → generate 32-byte token → save user (isVerified: false)
+         → dispatch verification email (Gmail SMTP / Resend) with Vercel link
 Login    → bcrypt compare → sign JWT (HS256, 7d expiry) → return token
+Verify   → token validate → check 24h expiry → set isVerified: true → delete token
 Request  → Bearer token → JWT verify → req.user → controller
 ```
 
@@ -476,17 +511,104 @@ Request  → Bearer token → JWT verify → req.user → controller
 | **Password hashing** | bcryptjs with 10 salt rounds |
 | **JWT signing** | HS256 algorithm, 7-day expiry, subject = userId |
 | **Secret validation** | Server refuses to start if `JWT_SECRET` < 32 chars |
-| **Middleware enforcement** | `protect` middleware on all pantry and basket routes |
+| **Email verification tokens** | 32-byte cryptographic random hex strings (`crypto.randomBytes`) |
+| **Token expiration** | Strictly expires after 24 hours (`verificationTokenExpiresAt`) |
+| **Single-use guarantee** | Verification tokens purged upon consumption to prevent replay attacks |
+| **Resend abuse guard** | 60-second cooldown per account (`HTTP 429 RESEND_COOLDOWN`) |
+| **Credential scrubbing** | Error logs sanitize and redact passwords, App Passwords, and API keys |
+| **Middleware enforcement** | `protect` middleware on all pantry, basket, and user routes |
 | **Ownership enforcement** | All queries filter by `userId` from verified JWT |
 | **IDOR prevention** | Server never trusts client-supplied userId |
-| **Google OAuth** | `google-auth-library` token verification |
-| **Error responses** | Sanitized — never exposes stack traces or hashes |
+| **Google OAuth** | `google-auth-library` token verification with email verification check |
 | **Legacy migration** | JIT bcrypt upgrade on first login for old plain-text passwords |
-| **Token exposure** | Tokens never logged or included in error responses |
 
-### Security Test Results
-- ✅ **30/30** local security assertions passed
-- ✅ **23/23** live MongoDB Atlas security checks passed
+---
+
+## 📧 Email Verification & Multi-Provider Architecture
+
+RASAVANTA AI features a resilient, multi-provider email architecture capable of sending branded verification and transactional emails.
+
+### Verification Workflow
+
+```
+[User Registration]
+        │
+        ▼
+Generate 32-byte Hex Token (Expires in 24 Hours)
+        │
+        ▼
+Build Canonical Verification Link:
+${CLIENT_URL}/verify-email?token=${token}
+        │
+        ▼
+Dispatch Branded HTML & Text Email (Gmail SMTP / Resend)
+        │
+        ▼
+[User Clicks Email Link] ──▶ React Frontend (/verify-email)
+                                    │
+                                    ▼
+                          POST /api/v1/auth/verify-email
+                                    │
+                         ┌──────────┴──────────┐
+                         │ Valid & < 24 Hours  │
+                         ▼                     ▼
+                  Set isVerified: true    Invalid/Expired:
+                  Purge token fields      Return HTTP 400
+                  Return 200 OK           Offer 60s Resend
+```
+
+1. **Registration**: Upon registration, an unverified account is created (`isVerified: false`). A secure cryptographic token is generated with a strict 24-hour expiration window.
+2. **Canonical URL Dispatch**: The server generates links using `CLIENT_URL` (e.g., `https://rasavanta-ai.vercel.app/verify-email?token=...`), avoiding localhost leaks in production.
+3. **Branded HTML Template**: Features RASAVANTA AI styling with emerald green (`#244B39`) and turmeric gold (`#D99A38`), personalized greetings, call-to-action buttons, explicit fallback links, and plain-text alternatives.
+4. **Single-Use Enforcement**: Once verified, the token is permanently removed from the user document, preventing token re-use.
+5. **Cooldown Guard (60s)**: Resend requests are throttled with a 60-second cooldown timer. Attempting an immediate resend returns `HTTP 429` with `retryAfterSeconds`.
+
+---
+
+### Dual Email Provider Architecture
+
+The email layer (`server/src/services/emailService.js`) abstracts delivery behind a unified interface:
+
+```
+                      ┌───────────────────────────┐
+                      │    emailService.js        │
+                      └─────────────┬─────────────┘
+                                    │
+               ┌────────────────────┴────────────────────┐
+               ▼                                         ▼
+   EMAIL_PROVIDER = 'gmail'                  EMAIL_PROVIDER = 'resend'
+   Nodemailer (STARTTLS :587)                Resend SDK (HTTPS API)
+   smtp.gmail.com                            api.resend.com
+   Authenticated via App Password            Authenticated via RESEND_API_KEY
+```
+
+- **Gmail SMTP (Nodemailer)**:
+  - Transport: `smtp.gmail.com` on Port `587` with explicit STARTTLS (`requireTLS: true`, TLS v1.2+).
+  - Authentication: Google Account App Password (16 characters).
+  - Sender: `RASAVANTA AI <rasavantaai@gmail.com>`.
+- **Resend API**:
+  - Transport: REST API via `@resend/resend` SDK over HTTPS (Port 443).
+  - Authentication: `RESEND_API_KEY`.
+  - Sender: Custom verified domain or test domain `onboarding@resend.dev`.
+- **Provider Switching**:
+  Set `EMAIL_PROVIDER=gmail` or `EMAIL_PROVIDER=resend`. If omitted, the service auto-detects configured credentials.
+
+---
+
+### Cloud Hosting & Outbound SMTP Port Restrictions
+
+> [!WARNING]
+> **Render Free Plan Outbound SMTP Port Block**:
+> Cloud hosting providers — notably **Render's Free Tier** — block outbound traffic on standard SMTP ports (`25`, `465`, and `587`) across all free web services to prevent automated email spam.
+> 
+> - If you configure `EMAIL_PROVIDER=gmail` on a **Render Free** instance, direct SMTP socket connections to `smtp.gmail.com:587` will fail with network errors such as `getaddrinfo ENOTFOUND smtp.gmail.com` or `ETIMEDOUT`.
+> - **Solution for Render Free**: Set `EMAIL_PROVIDER=resend`. Because Resend communicates over standard outbound HTTPS (Port 443), it is **never blocked** by Render.
+> - **For Self-Hosted / Paid Render**: Gmail SMTP works smoothly on VPS, paid instances, and local development environments where outbound port 587 is unrestricted.
+
+#### Architectural Roadmap: Google Apps Script HTTPS Mail Relay (Planned)
+To allow zero-cost Gmail delivery from port-restricted hosts like Render Free without requiring a paid instance or third-party email quota:
+- An HTTPS mail relay using a **Google Apps Script Web App** is currently **under evaluation as a future enhancement**.
+- *Status*: **Not yet implemented**. Current production deployments should use `EMAIL_PROVIDER=resend` on Render Free or Gmail SMTP on environments with open port 587.
 
 ---
 
@@ -548,7 +670,7 @@ Rasavanta AI/
 │   │       └── recipes/             # Recipe food photography
 │   ├── src/
 │   │   ├── context/                 # AuthContext, NavigationContext, PantryContext, RecipeContext
-│   │   ├── pages/                   # All application pages
+│   │   ├── pages/                   # All application pages including VerifyEmail.jsx
 │   │   ├── components/              # Shared UI components & 3D Studio
 │   │   ├── services/                # api.js, authService.js, pantryService.js, etc.
 │   │   └── main.jsx                 # App entry point
@@ -559,17 +681,20 @@ Rasavanta AI/
 │   ├── src/
 │   │   ├── config/                  # db.js — MongoDB connection
 │   │   ├── controllers/             # authController, pantryController, etc.
-│   │   ├── middleware/              # authMiddleware.js (JWT protect)
+│   │   ├── middleware/              # authMiddleware.js (JWT protect & optionalAuth)
 │   │   ├── models/                  # Mongoose schemas (User, PantryItem, ShoppingList, Recipe)
-│   │   ├── routes/                  # Express route definitions
-│   │   ├── services/                # geminiService.js, recipeImageService.js
+│   │   ├── routes/                  # Express route definitions (auth, pantry, basket, recipes, rasabot)
+│   │   ├── services/                # emailService.js, geminiService.js, recipeImageService.js
 │   │   ├── scripts/                 # migrate_passwords.js
 │   │   ├── seed/                    # seedData.json, seedRecipes.js
 │   │   ├── app.js                   # Express app configuration
-│   │   └── server.js                # Entry point
+│   │   ├── server.js                # Entry point
+│   │   ├── testEmailVerification.js # Automated email & auth test suite
+│   │   └── testSecuritySuite.js     # Automated security test suite
+│   ├── .env.example                 # Sanitized environment template
 │   └── package.json
 │
-├── .gitignore                       # Excludes .env files and node_modules
+├── .gitignore                       # Excludes .env files, node_modules, and build artifacts
 └── README.md
 ```
 
@@ -598,10 +723,11 @@ Rasavanta AI/
 
 ### Prerequisites
 
-- **Node.js** v18 or higher
+- **Node.js** v18 or higher (LTS recommended)
 - **npm** v9 or higher
 - **MongoDB Atlas** account (or local MongoDB)
-- **Google Gemini API key** — [Get one here](https://ai.google.dev/)
+- **Google Gemini API key** — [Get one at Google AI Studio](https://ai.google.dev/)
+- **Gmail Account + App Password** (for Gmail SMTP) or **Resend API key** (for Resend)
 - **Google Cloud OAuth credentials** (optional, for Google Sign-In)
 
 ### 1. Clone the Repository
@@ -627,12 +753,12 @@ npm install
 
 ### 4. Configure Environment Variables
 
-See the [Environment Variables](#environment-variables-configuration) section below.
+Create your local `.env` files using the templates provided below in the [Environment Variables](#environment-variables-configuration) section.
 
 ### 5. Seed the Recipe Database (Optional)
 
 ```bash
-cd server
+cd ../server
 npm run seed
 ```
 
@@ -641,46 +767,65 @@ npm run seed
 ## 🔑 Environment Variables Configuration
 
 > [!CAUTION]
-> Never commit real credentials to Git. The `.env` files are listed in `.gitignore` and must never be tracked.
+> Never commit real credentials to Git. All `.env` files are ignored via `.gitignore` and must contain placeholder values only in public repositories.
 
 ### Backend — `server/.env`
 
+Create a file named `server/.env` based on `server/.env.example`:
+
 ```env
-# MongoDB Atlas Connection
-MONGODB_URI=mongodb+srv://<username>:<password>@<cluster>.mongodb.net/<dbname>?retryWrites=true&w=majority
-
-# JWT Authentication — REQUIRED (minimum 32 characters)
-JWT_SECRET=your-strong-random-secret-minimum-32-characters-long
-
-# Google Gemini AI Key
-GEMINI_API_KEY=your-gemini-api-key-here
-
-# Google OAuth (optional — for Google Sign-In)
-GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
-
-# Resend Email (optional — for email features)
-RESEND_API_KEY=re_your_resend_api_key
-
 # Server Port & Mode
 PORT=5000
 NODE_ENV=development
+
+# MongoDB Atlas Connection URI
+MONGODB_URI=mongodb+srv://<username>:<password>@<cluster>.mongodb.net/<database>?retryWrites=true&w=majority
+
+# Google Gemini API Key
+GEMINI_API_KEY=your_gemini_api_key_here
+
+# Google OAuth 2.0 Client ID (optional)
+GOOGLE_CLIENT_ID=your_google_client_id.apps.googleusercontent.com
+
+# JWT Secret for Session Signing (Minimum 32 characters required)
+JWT_SECRET=your_jwt_secret_key_minimum_32_characters
+
+# Client Frontend URLs (Used for CORS and verification links)
+CLIENT_URL=http://localhost:5173
+FRONTEND_URL=http://localhost:5173
+
+# ==============================================================================
+# EMAIL SERVICE CONFIGURATION (Multi-Provider: Gmail SMTP & Resend)
+# ==============================================================================
+# Active provider: 'gmail' or 'resend'
+EMAIL_PROVIDER=gmail
+
+# Provider 1: Gmail SMTP (via Nodemailer with STARTTLS)
+# Obtain a 16-character App Password at: https://myaccount.google.com/apppasswords
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your_email@gmail.com
+SMTP_PASS=your_16_character_gmail_app_password
+EMAIL_FROM=RASAVANTA AI <your_email@gmail.com>
+
+# Provider 2: Resend API (Alternative Provider)
+# Obtain API key at: https://resend.com/api-keys
+RESEND_API_KEY=re_your_resend_api_key
+
+# Optional YouTube Data API v3 (for on-demand tutorial video search)
+YOUTUBE_API_KEY=your_youtube_data_api_key_here
 ```
 
 ### Frontend — `client/.env`
 
 ```env
 # Backend API base URL — MUST include /api/v1
-# If omitted, defaults to http://localhost:5000/api/v1 locally or https://rasavanta-ai.onrender.com/api/v1 in production
+# Defaults to http://localhost:5000/api/v1 locally or https://rasavanta-ai.onrender.com/api/v1 in production
 VITE_API_BASE_URL=http://localhost:5000/api/v1
 
-# Google OAuth Client ID (optional — for Google Sign-In button)
-VITE_GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
+# Google OAuth Client ID (optional)
+VITE_GOOGLE_CLIENT_ID=your_google_client_id.apps.googleusercontent.com
 ```
-
-> [!IMPORTANT]
-> - For production deployment on **Render**, set `JWT_SECRET`, `MONGODB_URI`, `GEMINI_API_KEY`, and other backend variables in Render Dashboard → Your Service → Environment.
-> - For **Vercel**, set `VITE_API_BASE_URL=https://rasavanta-ai.onrender.com/api/v1` (with the `/api/v1` suffix).
-> - Locally, if `VITE_API_BASE_URL` is omitted, `client/src/services/api.js` automatically defaults to `http://localhost:5000/api/v1`.
 
 ---
 
@@ -707,7 +852,7 @@ npm run dev
 ```bash
 cd client
 npm run build
-# Output in client/dist/
+# Compiles to client/dist/
 ```
 
 ### Available Scripts
@@ -716,22 +861,73 @@ npm run build
 
 | Command | Description |
 |---|---|
-| `npm start` | Start production server |
-| `npm run dev` | Start with nodemon hot reload |
-| `npm run seed` | Seed MongoDB with recipe catalog |
+| `npm start` | Start production Express server |
+| `npm run dev` | Start development server with nodemon hot reload |
+| `npm run seed` | Seed MongoDB with regional recipe catalog |
 | `npm test` | Run comprehensive end-to-end integration tests |
 | `npm run test:db` | Test MongoDB Atlas CRUD operations |
 | `npm run test:gemini` | Test Google Gemini API integration |
-| `npm run test:security` | Run 30 security & ownership assertions |
-| `npm run migrate:passwords` | Dry-run bcrypt password migration |
+| `npm run test:security` | Run 30 security, auth, and data isolation assertions |
+| `npm run migrate:passwords` | Dry-run bcrypt password migration helper |
 
 #### Frontend (`client/`)
 
 | Command | Description |
 |---|---|
-| `npm run dev` | Start Vite dev server |
-| `npm run build` | Build for production |
-| `npm run preview` | Preview production build |
+| `npm run dev` | Start Vite dev server with HMR |
+| `npm run build` | Build optimized production bundles |
+| `npm run preview` | Preview production build locally |
+
+---
+
+## 🧪 Automated Testing & Security Suites
+
+RASAVANTA AI includes automated test suites covering authentication, data isolation, and multi-provider email verification:
+
+### 1. Multi-Provider Email & Auth Suite (`server/src/testEmailVerification.js`)
+Tests email provider switching, STARTTLS transport, canonical URL generation, token consumption, single-use guards, and resend rate limits with zero outbound email traffic via a mock JSON transport.
+
+```bash
+node server/src/testEmailVerification.js
+```
+
+**Verified Test Results:**
+- ✅ **54 / 54 PASSED** (0 failed)
+- Covers: Provider switching (`gmail` vs `resend`), canonical URL generation (`${CLIENT_URL}/verify-email?token=...`), 24h expiration, single-use token invalidation, 60s resend cooldown, missing credential error handling, and API key sanitization.
+
+### 2. Core Security & Data Isolation Suite (`server/src/testSecuritySuite.js`)
+Validates password hashing, JWT signing and tamper rejection, route protection, and Broken Object Level Authorization (BOLA/IDOR) defense.
+
+```bash
+node server/src/testSecuritySuite.js
+```
+
+**Verified Test Results:**
+- ✅ **30 / 30 PASSED** (0 failed)
+- Covers: Input validation, bcrypt hashing, JWT issuance, `/auth/me` identity resolution, forged token rejection, and strict cross-user data isolation on Pantry and Smart Basket collections.
+
+---
+
+## 🛠️ Troubleshooting & FAQs
+
+### 1. Render Free Outbound SMTP Failure (`getaddrinfo ENOTFOUND smtp.gmail.com` or `ETIMEDOUT`)
+- **Cause**: Render Free blocks outbound TCP connections on SMTP ports 25, 465, and 587.
+- **Solution**: In Render Dashboard → Environment, change `EMAIL_PROVIDER` to `resend` and supply `RESEND_API_KEY`. Resend connects over standard HTTPS port 443 and will never be blocked.
+
+### 2. Gmail SMTP Authentication Failure (`535-5.7.8 Username and Password not accepted`)
+- **Cause**: Using your normal Google account password instead of an App Password, or 2-Step Verification is disabled.
+- **Solution**:
+  1. Enable 2-Step Verification on your Google Account: [https://myaccount.google.com/security](https://myaccount.google.com/security)
+  2. Generate a 16-character App Password at: [https://myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords)
+  3. Paste the 16-character string into `SMTP_PASS` in `server/.env`.
+
+### 3. Verification Link Shows "Expired" (`TOKEN_EXPIRED`)
+- **Cause**: Verification tokens have a strict 24-hour lifetime for security.
+- **Solution**: Navigate to `/verify-email` in the app, enter your registered email address, and click "Resend Verification Email" to receive a fresh token.
+
+### 4. Resend Rate Limit (`RESEND_COOLDOWN` / HTTP 429)
+- **Cause**: Attempting to resend a verification email within 60 seconds of the previous dispatch.
+- **Solution**: The UI will display a live countdown timer. Wait until the 60-second window elapses before triggering another resend.
 
 ---
 
@@ -750,14 +946,17 @@ Returns server status, MongoDB Atlas connectivity, and Gemini AI status. No auth
 
 ---
 
-### Authentication — `/api/v1/auth`
+### Authentication & Verification — `/api/v1/auth`
 
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
-| `POST` | `/api/v1/auth/register` | No | Register new user |
+| `POST` | `/api/v1/auth/register` | No | Register new user and dispatch verification email |
 | `POST` | `/api/v1/auth/login` | No | Login and receive JWT |
 | `POST` | `/api/v1/auth/google` | No | Google OAuth sign-in |
 | `GET` | `/api/v1/auth/me` | ✅ Required | Get authenticated user profile |
+| `POST` | `/api/v1/auth/verify-email` | No | Verify account using token (`{ "token": "..." }`) |
+| `GET` | `/api/v1/auth/verify-email` | No | Verify account via email click (`?token=...`) |
+| `POST` | `/api/v1/auth/resend-verification` | Optional | Resend verification email with 60s cooldown |
 
 **Register Request:**
 ```json
@@ -768,7 +967,7 @@ Returns server status, MongoDB Atlas connectivity, and Gemini AI status. No auth
 }
 ```
 
-**Login Response:**
+**Register Response (201 Created):**
 ```json
 {
   "success": true,
@@ -778,14 +977,37 @@ Returns server status, MongoDB Atlas connectivity, and Gemini AI status. No auth
     "name": "Priya Sharma",
     "email": "priya@example.com",
     "role": "Home Chef",
-    "avatar": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=400&q=80",
-    "preferences": {
-      "cuisine": "All",
-      "diet": "All",
-      "language": "en"
-    }
+    "isVerified": false
   },
+  "emailSent": true,
   "source": "mongodb"
+}
+```
+
+**Verify Email Request:**
+```json
+{
+  "token": "c0ffee1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+}
+```
+
+**Verify Email Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Email address verified successfully! Your account is active.",
+  "user": {
+    "id": "usr-1740540000000",
+    "email": "priya@example.com",
+    "isVerified": true
+  }
+}
+```
+
+**Resend Verification Request:**
+```json
+{
+  "email": "priya@example.com"
 }
 ```
 
@@ -856,25 +1078,31 @@ Vercel CDN (rasavanta-ai.vercel.app)
     ▼
 Render (rasavanta-ai.onrender.com)
     │  Node.js + Express server
-    │  Environment variables set in Render Dashboard
+    │  Environment variables configured in Render Dashboard
     │
-    ▼
-MongoDB Atlas (cluster0.sd4gg6y.mongodb.net)
-    │  rasavanta_ai database
-    │  Network access configured via Render IP
+    ├──▶ MongoDB Atlas (cluster0.sd4gg6y.mongodb.net)
+    │     rasavanta_ai database
     │
-    ▼
-Google Gemini API (ai.google.dev)
-    │  gemini-3.5-flash-lite
-    │  API key configured in Render environment
+    ├──▶ Transactional Email Dispatch:
+    │     • Resend API (HTTPS port 443 — Recommended for Render Free)
+    │     • Gmail SMTP (STARTTLS port 587 — Paid Render / Dedicated host)
+    │
+    └──▶ Google Gemini API (ai.google.dev)
+          gemini-3.5-flash-lite
 ```
 
-### Deployment Checklist
+### Deployment Configuration Matrix
 
-- **Frontend (Vercel)**: Connect GitHub repository. Set `VITE_API_BASE_URL` to `https://rasavanta-ai.onrender.com/api/v1`. Vercel auto-deploys on `git push`.
-- **Backend (Render)**: Connect GitHub repository. Set all backend environment variables in Render Dashboard → Environment. Render auto-deploys on `git push`.
-- **MongoDB Atlas**: Ensure Render's outbound IP addresses are added to the Atlas Network Access allowlist.
-- **JWT_SECRET**: Must be set in Render Dashboard before the backend can serve authenticated requests.
+| Platform | Variable | Recommended Production Value | Description |
+|---|---|---|---|
+| **Vercel** | `VITE_API_BASE_URL` | `https://rasavanta-ai.onrender.com/api/v1` | Points frontend Axios client to live Render API |
+| **Render** | `NODE_ENV` | `production` | Enables production security optimizations |
+| **Render** | `CLIENT_URL` | `https://rasavanta-ai.vercel.app` | Canonical URL for email verification links |
+| **Render** | `FRONTEND_URL` | `https://rasavanta-ai.vercel.app` | CORS allowed origin |
+| **Render** | `JWT_SECRET` | *(Random 32+ char secret)* | Signs and validates user session tokens |
+| **Render** | `EMAIL_PROVIDER` | `resend` (on Render Free) or `gmail` | Email provider selector |
+| **Render** | `RESEND_API_KEY` | `re_...` | Required if `EMAIL_PROVIDER=resend` |
+| **Render** | `SMTP_PASS` | *(16-char App Password)* | Required if `EMAIL_PROVIDER=gmail` |
 
 ---
 
@@ -882,6 +1110,7 @@ Google Gemini API (ai.google.dev)
 
 | Feature | Description |
 |---|---|
+| 📮 **Google Apps Script HTTPS Mail Relay** | Zero-cost Gmail delivery over HTTPS (port 443) for hosts blocking SMTP sockets |
 | 📷 **Ingredient Visual Recognition** | Camera-based pantry item identification using AI vision |
 | 🧬 **Personalized Nutrition Profiling** | Health-condition-aware dietary recommendations |
 | 🛍️ **Smart Shopping Suggestions** | AI-suggested shopping list based on pantry gaps and meal plan |
@@ -924,14 +1153,6 @@ Contributions are welcome! Here is how to contribute:
 - All new backend routes that handle user data must use the `protect` middleware.
 - Never commit `.env` files or hardcode credentials.
 - Write descriptive commit messages.
-
-### Reporting Issues
-
-Open an issue on GitHub with:
-- A clear description of the problem
-- Steps to reproduce
-- Expected vs. actual behavior
-- Environment details (OS, Node version, browser)
 
 ---
 
